@@ -1,12 +1,295 @@
-# Genetic-Based Drug Repurposing Pipeline for Head and Neck Cancer (Nulton Cohort)
+# Genomic Landscape-Based Drug Repurposing for Head and Neck Cancer (TCGA-HNSC Nulton Cohort)
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Project Directory Structure](#project-directory-structure)
+3. [Required Input Data Sources](#required-input-data-sources)
+4. [Output File Descriptions](#output-file-descriptions)
+5. [Getting Started](#getting-started)
+   - [System Requirements](#system-requirements)
+   - [Installation](#installation)
+   - [Quick Start](#quick-start)
+   - [Expected Runtime](#expected-runtime)
+   - [Troubleshooting](#troubleshooting)
+6. [File-by-File Breakdown](#file-by-file-breakdown)
+   - [00 Data viewing.ipynb](#00-data-viewingipynb)
+   - [01 determine HPV status.ipynb](#01-determine-hpv-statusipynb)
+   - [02 CNV identify mutation gene.ipynb](#02-cnv-identify-mutation-geneipynb)
+   - [02.2 CNV key mutation identification.ipynb](#022-cnv-key-mutation-identificationipynb)
+   - [02.50 CNV drug repurposing candidates copy.ipynb](#0250-cnv-drug-repurposing-candidates-copyipynb)
+   - [03 SOM identify key mutation gene.ipynb](#03-som-identify-key-mutation-geneipynb)
+   - [03.5 SOM drug repurpose.ipynb](#035-som-drug-repurposeipynb)
+   - [04 SOM and CNV results comparison.ipynb](#04-som-and-cnv-results-comparisonipynb)
+   - [05 Final result creation.ipynb](#05-final-result-creationipynb)
+   - [06 Graph direct results.ipynb](#06-graph-direct-resultsipynb)
+   - [07_sankey_diagram_builder.ipynb](#07_sankey_diagram_builderipynb)
+7. [Key Databases and Resources](#key-databases-and-resources)
+8. [Output Summary](#output-summary)
+9. [Validation Pipeline (Literature Mining)](#validation-pipeline-literature-mining)
+   - [00 extract_pmids.bash](#00-extract_pmidsbash)
+   - [01 extract based on pmid.ipynb](#01-extract-based-on-pmidipynb)
+   - [02 GPU Extraction Scripts](#02-gpu-extraction-scripts)
+   - [03 data viewing.ipynb](#03-data-viewingipynb)
+   - [Validation Pipeline Workflow Summary](#validation-pipeline-workflow-summary)
+   - [Output Integration](#validation-pipeline-output-integration)
+10. [Usage Notes](#usage-notes)
+11. [Data Availability and Reproducibility](#data-availability-and-reproducibility)
+12. [Repository Information](#repository-information)
+13. [Contact and Support](#contact-and-support)
+14. [Key References](#key-references)
+
+---
 
 ## Overview
 
-This pipeline performs a comprehensive genetic analysis of the TCGA Head and Neck Cancer (HNSC) cohort to identify drug repurposing candidates stratified by HPV status. The workflow integrates copy number variation (CNV) data, somatic mutation (SOM) data, protein-protein interaction (PPI) networks, and DrugBank annotations to discover both **direct** (drug directly targets mutated genes) and **indirect** (drug targets genes connected via PPI to mutated genes) therapeutic candidates. 
+This pipeline performs a comprehensive genomic analysis of the TCGA Head and Neck Squamous Cell Carcinoma (HNSC) cohort to identify drug repurposing candidates stratified by HPV status. The workflow integrates copy number variation (CNV) data, somatic mutation (SOM) data, protein-protein interaction (PPI) networks, and DrugBank annotations to discover both **direct** (drug directly targets mutated genes) and **indirect** (drug targets genes connected via PPI to mutated genes) therapeutic candidates. 
 
-The pipeline consists of 8 major analysis notebooks (00-07) that sequentially process genomic data, identify significantly mutated genes in HPV-positive and HPV-negative cohorts, discover drug candidates through statistical enrichment testing and literature validation, and visualize the results. Key statistical methods include hypergeometric testing for drug-gene enrichment and empirical permutation testing for significance validation. Results are validated against PubMed literature using GPU-accelerated natural language processing to confirm drug-gene interactions.
+The pipeline consists of 8 major analysis notebooks (00-07) plus a validation pipeline that sequentially process genomic data, identify significantly mutated genes in HPV-positive and HPV-negative cohorts, discover drug candidates through rigorous statistical enrichment testing and literature validation, and visualize the results. Key statistical methods include Binomial significance testing, hypergeometric testing for drug-gene enrichment, empirical permutation testing for significance validation, and FDR correction using Benjamini-Hochberg methodology. Results are validated against PubMed literature using GPU-accelerated natural language processing (NLP) with the Gemma 2B model to confirm drug-gene interactions from published research.
 
-The final outputs include tables of drug repurposing candidates with DrugBank-verified actions, literature validation, mutation types, statistical significance metrics, and network visualization graphs showing drug-gene relationships for both HPV+ and HPV- patient cohorts.
+The final outputs include curated tables of drug repurposing candidates with DrugBank-verified mechanisms of action, literature validation from PubMed mining, mutation types (amplification, deletion, somatic), statistical significance metrics (Binomial, hypergeometric and empirical FDR), and interactive Sankey diagrams and network visualizations showing drug-gene-target relationships for both HPV+ and HPV- patient cohorts.
+
+---
+
+## Pipeline Workflow Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         INPUT DATA ACQUISITION                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ • TCGA HNSC: CNV (gene-level) + SOM (MAF format)                            │
+│ • Nulton et al.: HPV status validation                                      │
+│ • DrugBank: Drug-gene interactions (XML)                                    │
+│ • STRING: Protein-protein interactions (confidence ≥700)                    │
+│ • Gencode: Gene annotations and chromosome lengths                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    00 DATA VIEWING & EXPLORATION                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ • Parse DrugBank XML (~21,714 drug-gene interactions)                       │
+│ • Load and explore PPI network structure                                    │
+│ • Visualize CNV and SOM data distributions                                  │
+│ • Clinical data exploration (age, gender, diagnosis)                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    01 HPV STATUS STRATIFICATION                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ • Load Nulton HPV+ cases (n=72)                                             │
+│ • Identify HPV- cases (n=448)                                               │
+│ • Filter somatic mutations to Nulton cohort                                 │
+│ Output: HPV+ patients.csv, HPV- patients.csv                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+        ┌───────────────────────────┴───────────────────────────┐
+        ↓                                                       ↓
+┌──────────────────────────┐                         ┌──────────────────────────┐
+│   CNV ANALYSIS BRANCH    │                         │   SOM ANALYSIS BRANCH    │
+├──────────────────────────┤                         ├──────────────────────────┤
+│ 02 CNV Mutation Genes    │                         │ 03 SOM Mutation Genes    │
+│ • GISTIC score calc      │                         │ • Mutation frequency     │
+│ • Binomial testing       │                         │ • Binomial testing       │
+│ • 1,000 permutations     │                         │ • 10,000 permutations    │
+│ • FDR correction (BH)    │                         │ • FDR correction (BH)    │
+│ Output: Significant CNV  │                         │ • Frequency cutoffs      │
+│   genes (HPV+/HPV-)      │                         │ • Score distributions    │
+├──────────────────────────┤                         │ Output: Significant SOM  │
+│ 02.2 CNV Gene Filter     │                         │   genes (HPV+/HPV-)      │
+│ • Distribution analysis  │                         ├──────────────────────────┤
+│ • Apply GISTIC cutoffs   │                         │ 03.5 SOM Drug Repurpose  │
+│ • Apply frequency cutoff │                         │ • Hypergeometric test    │
+│ Output: Top CNV genes    │                         │ • 100K permutations      │
+├──────────────────────────┤                         │ • Direct candidates      │
+│ 02.50 CNV Drug Repurpose │                         │ • Indirect (PPI) cand.   │
+│ • Hypergeometric test    │                         │ Output: SOM drug cand.   │
+│ • 100K permutations      │                         │   (HPV+/HPV-)            │
+│ • Direct candidates      │                         └──────────────────────────┘
+│ • Indirect (PPI) cand.   │                                     │
+│ Output: CNV drug cand.   │                                     │
+│   (HPV+/HPV-)            │                                     │
+└──────────────────────────┘                                     │
+└──────────────────────────┘                                     │
+               │                                                 │
+               └───────────────────┬─────────────────────────────┘
+                                   ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    04 CNV AND SOM COMPARISON                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ • Calculate gene overlap (CNV ∩ SOM)                                        │
+│ • Calculate drug overlap across mutation types                              │
+│ • Identify converging evidence (amp + del + somatic)                        │
+│ • Preliminary aggregation                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│              05 FINAL RESULT CREATION & AGGREGATION                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ • Merge CNV + SOM gene results                                              │
+│ • Aggregate direct drug candidates (CNV + SOM)                              │
+│ • Aggregate indirect drug candidates (CNV + SOM)                            │
+│ • Integrate literature validation (PMIDs, article counts)                   │
+│ • Take minimum FDR across sources                                           │
+│ Output: Final gene results (HPV+/HPV-)                                      │
+│ Output: Final direct results (HPV+/HPV-)                                    │
+│ Output: Final indirect results (HPV+/HPV-)                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+        ┌───────────────────────────┴───────────────────────────┐
+        ↓                                                       ↓
+┌──────────────────────────┐                         ┌──────────────────────────┐
+│   06 DIRECT DRUG VIZ     │                         │   07 INDIRECT DRUG VIZ   │
+├──────────────────────────┤                         ├──────────────────────────┤
+│ • Top direct drugs       │                         │ • Top indirect drugs     │
+│ • DrugBank action verify │                         │ • PPI pathway validation │
+│ • Per-gene ACTION lookup │                         │ • Literature validation  │
+│ • Mutation type mapping  │                         │ • Gene family grouping   │
+│ • Bipartite network viz  │                         │ • Sankey diagrams:       │
+│ Output: Top   Direct     │                         │   - Combined (all drugs) │
+│   DrugBank Verified CSV  │                         │   - Individual (per drug)│
+│   (HPV+/HPV-)            │                         │ Output: Top   PPI        │
+│                          │                         │   Validated CSV          │
+│                          │                         │   (HPV+/HPV-)            │
+└──────────────────────────┘                         └──────────────────────────┘
+                                    ↓
+┌────────────────────────────────────────────────────────────────────────────┐
+│                         FINAL DELIVERABLES                                 │
+├────────────────────────────────────────────────────────────────────────────┤
+│ ✓ Significant Genes: HPV+/HPV- gene results (CNV + SOM)                    │
+│ ✓ Direct Drugs: Top drugs targeting mutated genes (DrugBank verified)      │
+│ ✓ Indirect Drugs: Top drugs targeting PPI-connected genes (validated)      │
+│ ✓ Visualizations: Network graphs, Sankey diagrams (interactive HTML)       │
+│ ✓ Literature Support: PMIDs, article counts, validation status             │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│              VALIDATION PIPELINE (LITERATURE)                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 00: Extract PMIDs from PubMed ("head and neck cancer")                      │
+│ 01: Download abstracts and full-text (100K+ articles)                       │
+│ 02: GPU-accelerated NLP extraction (Gemma 2B model, 24-72 hours)            │
+│ 03: Clean and validate Genes    (remove unknowns, cross-ref DBs)            │
+│ → Integration: Merge into File 05 for literature-validated columns          │
+│`       (only carry forward literature-validated genes )                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+<!-- 
+## Key Statistical Methodology
+
+### 1. Gene-Level Significance Testing
+
+**Copy Number Variation (CNV):**
+- **Test:** Binomial test (right-tailed)
+- **Null Hypothesis:** Gene alteration frequency = background rate
+- **Alternative:** Gene alteration frequency > background rate
+- **Background:** Calculated per cohort from all genes
+- **Threshold:** CNV > 4 (amplification) or CNV < 1 (deletion)
+- **Validation:** 1,000 permutations (shuffle HPV labels)
+- **Correction:** Benjamini-Hochberg FDR (q < 0.05)
+- **GISTIC Score:** Σ(log₂(CNV)) × frequency (normalized)
+
+**Somatic Mutations (SOM):**
+- **Test:** Binomial test (right-tailed)
+- **Null Hypothesis:** Mutation frequency = background mutation rate
+- **Alternative:** Mutation frequency > background rate
+- **Background:** Total mutations / (genes × patients)
+- **Validation:** 10,000 permutations
+- **Correction:** Benjamini-Hochberg FDR (q < 0.05)
+
+### 2. Drug Enrichment Testing
+
+**Hypergeometric Test:**
+- **Question:** Does drug target more significant genes than expected by chance?
+- **Parameters:**
+  - M = Total genes in DrugBank
+  - K = Significant genes from CNV/SOM analysis
+  - n = Genes targeted by this drug
+  - x = Significant genes targeted by this drug
+- **Test:** P(X ≥ x) where X ~ Hypergeom(M, K, n)
+- **Direction:** Right-tailed (over-representation)
+
+**Empirical Permutation Validation:**
+- **Iterations:** 100,000 permutations
+- **Procedure:** 
+  1. Randomly shuffle gene labels (preserve network structure)
+  2. Recalculate hypergeometric enrichment for each drug
+  3. Count permutations with enrichment ≥ observed
+  4. Empirical p-value = count / 100,000
+- **Rationale:** Validates that enrichment is not due to network topology or database biases
+
+**Multiple Testing Correction:**
+- **Method:** Benjamini-Hochberg procedure
+- **FDR Threshold:** 0.05
+- **Applied to:** Both hypergeometric p-values and empirical p-values
+- **Final Filter:** hypergeom_fdr < 0.05 **AND** empirical_fdr < 0.05
+
+### 3. Protein-Protein Interaction (PPI) Analysis
+
+**Network Construction:**
+- **Database:** STRING v12.0 (Homo sapiens, organism 9606)
+- **Confidence Threshold:** ≥700 (high confidence)
+- **Edge Definition:** Experimental and database evidence combined
+- **Directionality:** Bidirectional (symmetric interactions)
+
+**Indirect Drug Candidate Identification:**
+- **Definition:** Drug targets gene A, gene A interacts with risk gene B via PPI
+- **Path Length:** 1 hop (direct PPI connection)
+- **Validation:** Both drug→target and target→risk connections must be validated
+- **Scoring:** Percentage of risk genes reachable via PPI
+
+### 4. Literature Validation (Optional)
+
+**NLP Extraction:**
+- **Model:** Gemma 2B (Google)
+- **Input:** PubMed abstracts and full-text articles
+- **Task:** Named entity recognition + relation extraction
+- **Validation:** Requires ≥2 articles mentioning same drug-gene pair
+- **Quality Control:** Cross-reference with DrugBank and HGNC
+
+**Integration:**
+- **Primary Evidence:** Genomic data + statistical testing
+- **Secondary Evidence:** Literature validation (confirmatory)
+- **Absence of Literature:** Does not invalidate genomic findings (may indicate novel discoveries)
+
+### 5. Statistical Significance Criteria
+
+**Gene-Level (CNV or SOM):**
+```
+Significant if ALL conditions met:
+• q_value < 0.05 (parametric FDR)
+• empirical_q_value < 0.05 (permutation-based FDR)
+• Frequency or GISTIC threshold (category-specific)
+```
+
+**Drug-Level (Direct or Indirect):**
+```
+Significant if ALL conditions met:
+• drug_hypergeom_fdr < 0.05
+• drug_empirical_fdr < 0.05
+• Targets ≥1 significant gene (direct) or connected via PPI (indirect)
+```
+
+**Conservative Approach:**
+- Dual testing (parametric + empirical) reduces false positives
+- High permutation counts (10K-100K) ensure robust p-values
+- FDR correction accounts for multiple hypothesis testing
+
+### 6. Effect Size Metrics
+
+**GISTIC Score (CNV):**
+- Combines magnitude (log₂ copy number) and frequency
+- Higher score = stronger/more frequent alteration
+- Used for prioritization (not just significance)
+
+**Frequency Percentage:**
+- Proportion of cohort with alteration
+- Clinical relevance: Higher frequency = more patients benefit
+
+**Percentage of Targets Hit:**
+- Proportion of significant genes targeted by drug
+- Drug specificity: Higher percentage = more targeted therapy -->
 
 ---
 
@@ -22,7 +305,6 @@ Genetic based drug repurposing Nulton cohort/
 ├── 02.50 CNV drug repurposing candidates copy.ipynb
 ├── 03 SOM identify key mutation gene.ipynb
 ├── 03.5 SOM drug repurpose.ipynb
-├── 03.75 result viewing.ipynb
 ├── 04 SOM and CNV results comparison.ipynb
 ├── 05 Final result creation.ipynb
 ├── 06 Graph direct results.ipynb
@@ -113,17 +395,19 @@ Genetic based drug repurposing Nulton cohort/
 │       ├── hpv_neg_del_top_drugBank_drug_candidates.csv   # Individual CNV del results
 │       └── hpv_neg_som_top_drugBank_drug_candidates.csv   # Individual SOM results
 │
-└── Validation pipeline/                     # Literature validation (optional)
-    ├── 00 extract_pmids.bash
-    ├── 01 extract based on pmid.ipynb
-    ├── 02 metastasis_GPU_full_extract_09_18_24.sh
-    ├── 02 metastastis_GPU_full_extract_09_18_24.py
-    ├── 03 data viewing.ipynb
-    ├── pmids.txt
+└── Validation pipeline/                     # Literature validation (optional but recommended)
+    ├── 00 extract_pmids.bash                # PubMed ID extraction using NCBI E-utilities
+    ├── 01 extract based on pmid.ipynb       # Download abstracts/full text from PubMed
+    ├── 02 metastasis_GPU_full_extract_09_18_24.sh      # GPU NLP extraction script
+    ├── 02 metastastis_GPU_full_extract_09_18_24.py     # Python GPU NLP extraction code
+    ├── 03 data viewing.ipynb                # Visualize and clean extracted drug-gene pairs
+    ├── pmids.txt                            # List of PubMed IDs for head and neck cancer
     ├── Data/                                # Literature mining input data
+    │   ├── DRUGBANK/                        # DrugBank reference for drug name matching
+    │   └── Protein-protein interaction data/  # PPI data for validation
     └── Results/                             # Literature mining results
-        ├── cleaned_extracted_targets_all_pub_after_2000_GPU_2b_gemma.csv  # Drug-gene from PubMed
-        └── cleaned_extracted_combined_targets_all_pub_after_2000_GPU_2b_gemma.csv
+        ├── cleaned_extracted_targets_all_pub_after_2000_GPU_2b_gemma.csv  # Drug-gene from PubMed (Gemma 2B model)
+        └── cleaned_extracted_combined_targets_all_pub_after_2000_GPU_2b_gemma.csv  # Combined drug-gene targets
 ```
 
 ### Required Input Data Sources
@@ -168,9 +452,14 @@ Genetic based drug repurposing Nulton cohort/
   - `2. HNC HPV Types.csv`: HPV+ patient identifiers
   - `TCGA CASE ID.csv`: Complete cohort case list
 
-**6. Literature Validation** (`Validation pipeline/`)
-- **Inputs**: utilizes pubmed IDs for Custom GPU-accelerated PubMed mining pipeline
-- **Output**: Requires heavy processing power to determine genes asociated with HNC based on public literature analysis
+**6. Literature Validation Data** (`Validation pipeline/`)
+- **Source**: PubMed database via NCBI E-utilities API
+- **Query**: "head and neck cancer"
+- **Processing**: Custom GPU-accelerated NLP extraction pipeline using Gemma 2B language model
+- **Computational Requirements**: NVIDIA GPU with ≥8GB VRAM (A100/V100 recommended), ≥32GB system RAM
+- **Output**: Drug-gene interaction pairs extracted from scientific literature with PMIDs
+- **Purpose**: Secondary validation of DrugBank drug candidates against published clinical and preclinical research
+- **Note**: This is an optional but highly recommended validation step that requires significant computational resources
 
 
 ### Output File Descriptions
@@ -254,7 +543,7 @@ Genetic based drug repurposing Nulton cohort/
 
 **Outputs:**
 - `Results/HPV results/HPV positive patients.csv`: 72 HPV+ case IDs based on Nulton et al analysis
-- `Results/HPV results/HPV negative patients.csv`: HPV- case IDs (remaining cohort)
+- `Results/HPV results/HPV negative patients.csv`: Remaining 448 HPV- case IDs based on Nulton et al analysis
 - `Data/TCGA/SOM/nulton_somatic_mutation_cohort.csv`: Filtered somatic mutations for the Nulton cohort
 
 **Statistics:**
@@ -272,14 +561,18 @@ Genetic based drug repurposing Nulton cohort/
 **Key Statistical Methods:**
 
 1. **Binomial Test:** Tests if the CNV of gene amplification/deletion in a cohort exceeds background rates.
-   - Null hypothesis: Gene alteration = background rate
-   - Alternative hypothesis: Gene alteratio > background rate (right-tailed test)
+   - Null hypothesis: Gene alteration = background rate observed across all genes
+   - Alternative hypothesis: Gene alteration > background rate (right-tailed test)
    
 2. **Multiple Testing Correction:** Uses Benjamini-Hochberg FDR correction to control false discovery rate across thousands of genes tested.
 
 3. **Empirical Permutation Testing:** Validates statistical significance by permuting CNV status labels 1,000 times to generate null distribution.
+   - Null distribution: Randomly shuffle HPV status labels among patients
+   - Null hypothesis: Observed gene alteration frequency is due to chance
+   - Alternative hypothesis: Observed gene alteration frequency is greater than chance
+      - P-value calculated as proportion of permutations with equal or greater alteration frequency than observed
 
-4. **Calculates GISTIC type scores**: calculates GISTIC score as the amplification value log2(CNV) summed across the cohort multiplied by the frequency of amplification/deletion across the cohort
+4. **Calculates GISTIC type scores**: calculates GISTIC score as the amplification or deletion value summed across the cohort multiplied by the frequency of amplification/deletion across the cohort
 
 **Key Operations:**
 - Loads TCGA gene-level CNV data from individual patient files
@@ -298,24 +591,22 @@ Genetic based drug repurposing Nulton cohort/
 - `Results/HPV results/HPV negative patients.csv`: HPV- case IDs
 
 **Outputs:**
-- `Results/CNV results/HPV positive CNV top genes.csv`: Significantly amplified/deleted genes in HPV+ cohort
-- `Results/CNV results/HPV negative CNV top genes.csv`: Significantly amplified/deleted genes in HPV- cohort
+- `Results/CNV results/HPV positive amplification genes.csv`: Significantly amplified genes in HPV+ cohort
+- `Results/CNV results/HPV positive deletion genes.csv`: Significantly deleted genes in HPV+ cohort
+- `Results/CNV results/HPV negative amplification genes.csv`: Significantly amplified genes in HPV- cohort
+- `Results/CNV results/HPV negative deletion genes.csv`: Significantly deleted genes in HPV- cohort
 
 **Key Columns in Output:**
 - `gene_name`: Gene symbol
-- `MUT_TYPE`: AMPLIFICATION or DELETION
-- `Cohort_Frequency`: Proportion of patients with alteration
-- `Normalized_Count`: Count of patients with alteration
+- `MUT_TYPE`: AMPLIFICATION (in amplification files) or DELETION (in deletion files)
+- `Cohort_Frequency`: Proportion of patients with the specific alteration (amplification or deletion)
+- `Normalized_Count`: Count of patients with the specific alteration
 - `q_value`: FDR-corrected p-value (Benjamini-Hochberg)
 - `empirical_q_value`: FDR-corrected empirical p-value from permutation testing
 - `GISTIC`: GISTIC score for the gene
 - `normalized_gistic_score`: Min-max normalized GISTIC score
 
-**Thresholds:**
-- Significant GISTIC amplification: > 4
-- Significant GISTIC deletion: < 1
-- Statistical significance: q_value < 0.05 AND empirical_q_value < 0.05
-
+**Note:** Each output file contains only one mutation type (either amplification or deletion), not both.
 **Libraries:** pandas, scipy.stats (binomtest), statsmodels.stats.multitest (multipletests), numpy, matplotlib, plotly
 
 ---
@@ -350,8 +641,7 @@ Genetic based drug repurposing Nulton cohort/
 
 2. **Exploratory Visualization:**
    - Score distribution plots for all metrics
-   - Scatter plots: GISTIC vs frequency_percentage, GISTIC vs q-value
-   - Identify genes available in DrugBank and PPI databases
+   - Scatter plots: GISTIC vs frequency_percentage, GISTIC vs q-value, GISTIC vs empirical_q_value
 
 3. **Define Cutoff Thresholds:**
    Based on distribution characteristics of GISTIC scores and frequency percentage:
@@ -487,19 +777,28 @@ This is a quality control and refinement notebook that:
 4. Filter to FDR < 0.05
 
 **Inputs:**
-- `Results/CNV results/HPV positive CNV top genes.csv`: Significant HPV+ CNV genes
-- `Results/CNV results/HPV negative CNV top genes.csv`: Significant HPV- CNV genes
+- `Results/CNV results/HPV positive amplification top genes.csv`: Significant HPV+ amplified genes (from File 02.2)
+- `Results/CNV results/HPV positive deletion top genes.csv`: Significant HPV+ deleted genes (from File 02.2)
+- `Results/CNV results/HPV negative amplification top genes.csv`: Significant HPV- amplified genes (from File 02.2)
+- `Results/CNV results/HPV negative deletion top genes.csv`: Significant HPV- deleted genes (from File 02.2)
 - DrugBank structured data (from `structure_drug_bank_data()`)
 - `Data/Protein-protein interaction data/9606.protein.links.v12.0.txt`: STRING PPI network links
 - `Data/Protein-protein interaction data/9606.protein.info.v12.0.txt`: Protein information
 - `Data/Protein-protein interaction data/9606.protein.aliases.v12.0.txt`: Protein aliases
 
 **Outputs:**
-- `Results/hpv_pos_amp_top_drugBank_drug_candidates.csv`: HPV+ amplification direct candidates
-- `Results/hpv_pos_del_top_drugBank_drug_candidates.csv`: HPV+ deletion direct candidates
-- `Results/hpv_neg_amp_top_drugBank_drug_candidates.csv`: HPV- amplification direct candidates
-- `Results/hpv_neg_del_top_drugBank_drug_candidates.csv`: HPV- deletion direct candidates
-- Indirect candidates for each category
+
+**Direct Drug Candidates:**
+- `Results/CNV results/hpv_pos_amp_top_drugBank_drug_candidates.csv`: HPV+ amplification direct drugs
+- `Results/CNV results/hpv_pos_del_top_drugBank_drug_candidates.csv`: HPV+ deletion direct drugs
+- `Results/CNV results/hpv_neg_amp_top_drugBank_drug_candidates.csv`: HPV- amplification direct drugs
+- `Results/CNV results/hpv_neg_del_top_drugBank_drug_candidates.csv`: HPV- deletion direct drugs
+
+**Indirect Drug Candidates (via PPI):**
+- `Results/CNV results/hpv_pos_amp_top_drugBank_drug_candidates_indirect.csv`: HPV+ amplification indirect drugs
+- `Results/CNV results/hpv_pos_del_top_drugBank_drug_candidates_indirect.csv`: HPV+ deletion indirect drugs
+- `Results/CNV results/hpv_neg_amp_top_drugBank_drug_candidates_indirect.csv`: HPV- amplification indirect drugs
+- `Results/CNV results/hpv_neg_del_top_drugBank_drug_candidates_indirect.csv`: HPV- deletion indirect drugs
 
 **Key Output Columns:**
 - `DRUG`: Drug name
@@ -516,39 +815,47 @@ This is a quality control and refinement notebook that:
 
 **Filters Applied:**
 - Excludes known head/neck cancer chemotherapy medications
-- Requires both hypergeom FDR < 0.05 AND empirical FDR < 0.05ed to notebook)
+- Requires both hypergeom FDR < 0.05 AND empirical FDR < 0.05
 - Distribution visualizations (plots)
 - PPI confidence threshold ≥ 700 for indirect candidates
 
-**Libraries:** pandas, numpy, scipy.stats (hypergeom), statsmodels.stats.multitest, xml.etree.ElementTree, networkx, matplotlib
-
 ---
 ### **03 SOM identify key mutation gene.ipynb**
-**Purpose:** Identify significantly mutated genes from somatic mutation (SOM) data stratified by HPV status.
+**Purpose:** Identify significantly mutated genes from somatic mutation (SOM) data stratified by HPV status using gene-length-normalized statistical testing.
 
 **Key Statistical Methods:**
 
-1. **Binomial Test:** Tests if mutation frequency of a gene in the cohort exceeds background mutation rate.
-   - Background rate calculated from total mutations across all genes and patients
-   - Right-tailed test for over-representation
+1. **Binomial Test:** Tests if observed mutations in a gene exceed random expectation accounting for gene length.
+   - Null hypothesis: Mutations are randomly distributed across the genome proportional to gene CDS (coding sequence) length
+   - Probability that a mutation occurs in gene g: p_g = L_g / L_total (gene length / total coding genome length)
+   - Test statistic: k_g ~ Binomial(N, p_g) where N = total mutations in cohort, k_g = observed mutations in gene g
+   - Right-tailed test: P(K ≥ k_g) using binomial distribution
 
-2. **Empirical Permutation Testing:** Shuffles HPV status labels 10,000 times to generate null distribution and validate significance.
+2. **Empirical/Multinomial Test:** Validates binomial results using Monte Carlo simulation with multinomial distribution.
+   - Generates null distribution by sampling from Multinomial(N, **p**) where **p** is vector of gene-length-based probabilities
+   - 10,000 simulations: In each iteration, all gene mutation counts are drawn simultaneously from multinomial
+   - Empirical p-value: proportion of simulations where simulated count ≥ observed count
+   - Accounts for dependencies between genes (mutations must sum to total N)
 
-3. **Multiple Testing Correction:** Benjamini-Hochberg FDR correction applied to control false discovery rate.
+3. **Multiple Testing Correction:** Benjamini-Hochberg FDR correction applied to both binomial and empirical p-values.
 
 **Key Operations:**
 - Loads somatic mutation data (MAF format) filtered to Nulton cohort
+- Filters to non-synonymous mutations only (Frame_Shift, Missense, Nonsense, Splice_Site, etc.)
+- Extracts CDS lengths from GENCODE v48 GTF annotation for gene length normalization
 - Stratifies mutations by HPV status
-- Calculates per-gene mutation frequencies in each cohort
-- Computes background mutation rate: `total_mutations / (num_genes × num_patients)`
-- Performs binomial testing for each gene
-- Applies FDR correction (Benjamini-Hochberg)
-- Runs empirical permutation tests (10,000 iterations) to validate significance
-- Normalizes mutation frequencies for downstream analysis
-- Identifies top significantly mutated genes (q-value < 0.05, empirical FDR < 0.05)
+- Calculates per-gene mutation counts and cohort frequencies
+- Computes gene-length-normalized probabilities: p_g = gene_CDS_length / total_coding_genome_length
+- Performs length-normalized binomial testing for each gene
+- Runs 10,000 multinomial simulations for empirical validation
+- Applies FDR correction (Benjamini-Hochberg) to both test p-values
+- Calculates mutation scores (normalized count × frequency percentage, inspired by GISTIC)
+- Applies frequency cutoffs and score thresholds for filtering
+- Identifies top significantly mutated genes (adjusted p-value < 0.05 for both tests)
 
 **Inputs:**
 - `Data/TCGA/SOM/nulton_somatic_mutation_cohort.csv`: Somatic mutations filtered to Nulton cohort patients
+- `Data/TCGA/SOM/gencode.v48.annotation.gtf`: GENCODE gene annotations with CDS lengths
 - `Results/HPV results/HPV positive patients.csv`: HPV+ case IDs
 - `Results/HPV results/HPV negative patients.csv`: HPV- case IDs
 
@@ -559,16 +866,35 @@ This is a quality control and refinement notebook that:
 **Key Columns in Output:**
 - `Gene`: Gene symbol (Hugo symbol)
 - `MUT_TYPE`: SOMATIC
-- `Cohort_Frequency`: Proportion of patients with mutation in the gene
-- `Normalized_Count`: Number of patients with mutation
-- `Normalized_Cohort_Frequency`: Min-max normalized frequency
-- `Adjusted_P_Value` (q_value): FDR-corrected p-value
+- `Mutation_Count`: Raw number of mutations in the gene
+- `Cohort_Frequency`: Number of patients with at least one mutation in the gene
+- `Frequency_Percentage`: Percentage of patients with mutations in the gene
+- `Normalized_Count`: Mutation count divided by gene CDS length (mutations per base pair)
+- `Mutation_Score`: Normalized_Count × Frequency_Percentage (composite score)
+- `Binomial_P_Value`: Raw binomial test p-value (length-normalized)
+- `Empirical_P_Value`: Raw empirical/multinomial test p-value
+- `Adjusted_P_Value` (q_value): FDR-corrected binomial p-value
 - `Adjusted_Empirical_P_Value` (empirical_q_value): FDR-corrected empirical p-value
+- `Normalized_Cohort_Frequency`: Min-max normalized frequency (for visualization)
 
-**Thresholds:**
-- Statistical significance: Adjusted_P_Value < 0.05 AND Adjusted_Empirical_P_Value < 0.05
+**Filtering Thresholds:**
 
-**Common Mutated Genes:** TP53, PIK3CA, CDKN2A, FAT1, NOTCH1 (typical in HNSC)
+**HPV Positive cohort:**
+- Frequency_Percentage ≥ 5.0%
+- Mutation_Score ≥ 0.002
+- Adjusted_P_Value < 0.05 (binomial)
+- Adjusted_Empirical_P_Value < 0.05 (multinomial)
+- Normalized_Cohort_Frequency ≥ 0.001
+- Normalized_Count ≥ 0.001
+
+**HPV Negative cohort:**
+- Frequency_Percentage ≥ 0.01%
+- Adjusted_P_Value < 0.05 (binomial)
+- Adjusted_Empirical_P_Value < 0.05 (multinomial)
+- Normalized_Cohort_Frequency ≥ 0.0035
+- Normalized_Count ≥ 0.0035
+
+**Common Mutated Genes:** TP53, PIK3CA, CDKN2A (typical in HNSC)
 
 **Libraries:** pandas, scipy.stats (binomtest), statsmodels.stats.multitest, numpy, matplotlib, plotly
 
@@ -615,93 +941,6 @@ This is a quality control and refinement notebook that:
 
 ---
 
-### **03.75 result viewing.ipynb**
-**Purpose:** Exploratory analysis and visualization of somatic mutation (SOM) drug repurposing results to understand drug candidate characteristics and define scoring thresholds.
-
-**Key Functions:**
-
-**`define_cutoffs(drug_candidates_df, title)`**
-- Analyzes distribution of drug candidate scores to define selection thresholds
-- Generates visualizations for:
-  - Drug type distribution (chemotherapy, immunotherapy, other)
-  - Priority norm scores (composite drug prioritization metric)
-  - Drug-gene interaction scores
-  - DrugNome AI support scores (druggability prediction)
-  - Cancer targetability scores
-- Calculates statistical cutoffs using mean and quantile methods
-- Returns dictionary of threshold values for filtering
-
-**`display_top_genes()` and `display_top_genes_and_neighbors()`**
-- Displays top genes with DrugBank/DGIdb coverage
-- Maps protein-protein interaction (PPI) network neighbors
-- Aggregates PPI connections per risk gene
-- Filters by PPI confidence (combined_score > 700)
-
-**Key Visualizations:**
-
-1. **Drug Type Analysis:**
-   - Bar charts showing counts and percentages of chemotherapy, immunotherapy, and other drugs
-   - Unique drug counts by type
-
-2. **Score Distributions:**
-   - Priority norm score histograms with mean/median markers
-   - Drug-gene interaction score distributions
-   - Normalized score distributions
-   - DrugNome AI support score distributions
-   - Cancer targetability score distributions with quantile thresholds
-
-3. **PPI Network Analysis:**
-   - Risk gene coverage in PPI database
-   - Immediate neighbor identification
-   - Connection strength visualization
-
-**Key Operations:**
-1. Load SOM drug candidate results for HPV+ and HPV-
-2. Merge with DrugNome AI oncology predictions
-3. Flag chemotherapy and immunotherapy drugs
-4. Generate distribution plots for all scoring metrics
-5. Calculate threshold cutoffs:
-   - Priority norm score: mean value
-   - Drug-gene interaction score: mean value
-   - DrugNome AI support: mean value
-6. Display top genes with PPI network context
-7. Aggregate immediate PPI neighbors for each risk gene
-
-**Scoring Metrics Explained:**
-
-- **PRIORITY_NORM_SCORE**: Composite normalized score combining multiple factors (FDR, frequency, GISTIC/mutation counts)
-- **DRUG-GENE-INTERACTION_SCORE**: Strength of drug-gene interaction based on literature and database evidence
-- **norm_DRUGNOMEAI SUPPORT**: DrugNome AI predicted druggability score (normalized)
-- **Cancer_targetability**: Cancer-specific targetability score (higher = better cancer drug candidate)
-- **CHEMO/IMMUNO**: Binary flags for known chemotherapy/immunotherapy drugs
-
-**Threshold Selection Rationale:**
-- Mean values used for most metrics (balanced selection)
-- PPI confidence ≥ 700 (high-confidence interactions only)
-
-**Inputs:**
-- `Results/SOM results/HPV positive drug candidates.csv`: SOM drug candidates for HPV+
-- `Results/SOM results/HPV negative drug candidates.csv`: SOM drug candidates for HPV-
-- DrugNome AI oncology predictions (external druggability database)
-- `Data/Protein-protein interaction data/9606.protein.links.v12.0.txt`: STRING PPI database
-
-**Outputs:**
-- Statistical threshold values (print)
-- PPI network statistics (printed)
-- Top genes with neighbor aggregation (displayed)
-
-**Use Case:**
-This is an exploratory/quality control notebook that helps researchers:
-- Understand the characteristics of identified drug candidates
-- Set appropriate thresholds for drug selection
-- Visualize score distributions before final filtering
-- Assess PPI network coverage of risk genes
-- Identify known cancer drugs in the candidate list
-
-**Libraries:** pandas, matplotlib, plotly
-
----
-
 ### **04 SOM and CNV results comparison.ipynb**
 **Purpose:** Compare and integrate drug candidates identified from CNV (amplifications/deletions) and somatic mutation analyses.
 
@@ -742,6 +981,7 @@ This is an exploratory/quality control notebook that helps researchers:
 **Outputs:**
 - Overlap statistics (printed to notebook)
 - Aggregated drug candidate tables (used for downstream analysis)
+- file used to view overlaps and Venn diagrams, not saved as output
 
 **Key Insights:**
 - Drugs targeting genes mutated through multiple mechanisms have stronger biological rationale
@@ -796,12 +1036,28 @@ This is an exploratory/quality control notebook that helps researchers:
 - Concatenate PMIDs (deduplicated, cleaned)
 
 **Inputs:**
-- All outputs from files 02-04 (CNV and SOM drug candidates)
-- `Results/CNV results/HPV positive CNV top genes.csv`
-- `Results/CNV results/HPV negative CNV top genes.csv`
-- `Results/SOM Results/HPV positive top genes.csv`
-- `Results/SOM Results/HPV negative top genes.csv`
-- Literature validation CSVs
+
+**Gene Results:**
+- `Results/CNV results/HPV positive CNV top genes.csv`: HPV+ CNV significant genes (from File 02.2)
+- `Results/CNV results/HPV negative CNV top genes.csv`: HPV- CNV significant genes (from File 02.2)
+- `Results/SOM Results/HPV positive top genes.csv`: HPV+ SOM significant genes (from File 03)
+- `Results/SOM Results/HPV negative top genes.csv`: HPV- SOM significant genes (from File 03)
+
+**Drug Candidates (Aggregated in File 04):**
+- `Results/CNV results/HPV Positive Top Direct Drug Candidates Aggregated.csv`: HPV+ CNV direct drugs (amp+del combined)
+- `Results/CNV results/HPV Positive Top Indirect Drug Candidates Aggregated.csv`: HPV+ CNV indirect drugs (amp+del combined)
+- `Results/CNV results/HPV Negative Top Direct Drug Candidates Aggregated.csv`: HPV- CNV direct drugs (amp+del combined)
+- `Results/CNV results/HPV Negative Top Indirect Drug Candidates Aggregated.csv`: HPV- CNV indirect drugs (amp+del combined)
+- `Results/SOM Results/hpv_positive_som_top_direct_drug_candidates_agg.csv`: HPV+ SOM direct drugs
+- `Results/SOM Results/hpv_positive_som_top_indirect_drug_candidates_agg.csv`: HPV+ SOM indirect drugs
+- `Results/SOM Results/hpv_negative_som_top_direct_drug_candidates_agg.csv`: HPV- SOM direct drugs
+- `Results/SOM Results/hpv_negative_som_top_indirect_drug_candidates_agg.csv`: HPV- SOM indirect drugs
+
+**Literature Validation (Optional):**
+- `Validation pipeline/Results/cleaned_extracted_targets_all_pub_after_2000_GPU_2b_gemma.csv`: Drug-gene pairs from PubMed
+- `Validation pipeline/Results/cleaned_extracted_combined_targets_all_pub_after_2000_GPU_2b_gemma.csv`: Combined drug-gene targets
+
+**Note:** File 05 uses the aggregated drug candidate files created in File 04, which have already combined amplification and deletion results from the CNV analysis.
 
 **Outputs:**
 - `Results/HPV positive gene results.csv`: Unified HPV+ significant genes (CNV + SOM)
@@ -834,10 +1090,10 @@ This is an exploratory/quality control notebook that helps researchers:
 
 **`create_direct_gene_table(results_df, drug_bank_df, hpv_gene_results, top_n=50, cohort_name='')`**
 - Creates top N direct drug candidate table with DrugBank action verification
-- Handles column name variations (`LITERATURE_VALIDATED_GENE_TARGETS` vs `LITERATURE_GENE_TARGETS`)
+<!-- - Handles column name variations (`LITERATURE_VALIDATED_GENE_TARGETS` vs `LITERATURE_GENE_TARGETS`) -->
 - Performs per-gene DrugBank action verification:
   - Searches DrugBank for each literature-validated target
-  - Marks genes without DrugBank annotation as "GENE: UNKNOWN"
+  <!-- - Marks genes without DrugBank annotation as "GENE: UNKNOWN" -->
   - Keeps all drugs (does not filter by action availability)
 - Maps mutation types from HPV gene results to validated targets
 - Collects specific molecular functions from DrugBank (limit 3)
@@ -847,7 +1103,7 @@ This is an exploratory/quality control notebook that helps researchers:
 **Visualization: Bipartite Drug-Gene Network**
 - Drugs positioned on left, genes on right
 - Drugs sorted by degree (number of genes targeted, descending)
-- Node colors represent mutation types (amplification: red, deletion: blue, somatic: green)
+<!-- - Node colors represent mutation types (amplification: red, deletion: blue, somatic: green) -->
 - Node sizes proportional to number of connections
 - Edge thickness represents strength of association
 - Includes gene degree counts and mutation type labels
@@ -855,9 +1111,9 @@ This is an exploratory/quality control notebook that helps researchers:
 **Key Operations:**
 1. Load direct results and gene results for HPV+ and HPV-
 2. Parse DrugBank XML for action and function verification
-3. Create top 50 tables with per-gene action verification:
+3. Create top tables with per-gene action verification:
    - Verify each gene target against DrugBank
-   - Mark missing actions as "GENE: UNKNOWN"
+   <!-- - Mark missing actions as "GENE: UNKNOWN" -->
    - Map mutation types from gene results
    - Collect molecular functions
    - Clean PMIDs
@@ -924,7 +1180,7 @@ This is an exploratory/quality control notebook that helps researchers:
    - Prioritizes statistically significant drugs with high target coverage
 
 2. **Process Required Drugs First:**
-   - If `required_drugs` list provided, processes these drugs first
+   - If `required_drugs` list provided, processes these drugs first (selected based on viewing top 50 and selecting top candidates)
    - Ensures specific drugs of interest are included regardless of ranking
 
 3. **Literature-Validated Gene Parsing:**
@@ -1004,7 +1260,7 @@ This is an exploratory/quality control notebook that helps researchers:
 - Maintains strict left-to-right flow
 
 **Visualization Features:**
-- Uniform link thickness (value=1 for all links, focus on topology not weight)
+<!-- - Uniform link thickness (value=1 for all links, focus on topology not weight) -->
 - `arrangement='snap'` for optimized node positioning
 - Per-drug gene family legend
 - Larger font sizes for readability
@@ -1025,7 +1281,7 @@ This is an exploratory/quality control notebook that helps researchers:
 3. **Parse Literature-Validated Genes:**
    - Extracts `LITERATURE_GENE_TARGETS`: Genes with PubMed evidence
    - Extracts `RISK_GENE_LITERATURE_GENE_TARGETS`: Risk genes with literature validation
-   - **Critical:** Only uses these validated genes, not all database entries
+   - **Critical:** Only uses these validated genes, not all database entries, crucial for evidence-based reporting
 
 4. **PPI Validation:**
    - Checks which gene targets connect to risk genes via STRING PPI (confidence ≥ 700)
@@ -1159,7 +1415,7 @@ This is an exploratory/quality control notebook that helps researchers:
 ## Key Databases and Resources
 
 **DrugBank XML (`Data/DGIDB/drug_bank.xml`):**
-- 22,820 drug-gene interactions
+- ~23,136 drug-gene interactions
 - Includes: drug names, gene targets, actions (inhibitor, antagonist, etc.), molecular functions
 - Namespace: `http://www.drugbank.ca`
 
@@ -1219,17 +1475,224 @@ This is an exploratory/quality control notebook that helps researchers:
 **Execution Order:**
 Run notebooks sequentially from 00 to 07 to reproduce the complete pipeline.
 
-**Computational Requirements:**
-- Files 02.50 and 03.5: High computational load (100,000 permutation tests)
-- File 07: Memory-intensive (large PPI network loading)
-- Recommended: ≥16GB RAM, multi-core CPU for parallel processing
+---
 
-**Dependencies:**
-- Python 3.8+
-- pandas, numpy, scipy, statsmodels
-- matplotlib, plotly, networkx
-- xml.etree.ElementTree
-- tqdm (progress bars)
+## Getting Started
+
+### System Requirements
+
+**Main Pipeline:**
+- **OS:** macOS, Linux, or Windows with WSL2
+- **RAM:** ≥16GB (32GB recommended for large-scale permutation testing)
+- **CPU:** Multi-core processor (≥4 cores recommended)
+- **Storage:** ~100GB free space for TCGA data and intermediate results
+- **Python:** 3.8 or higher
+
+**Validation Pipeline:**
+- **GPU:** NVIDIA GPU with ≥8GB VRAM (A100, V100, RTX 3090, or equivalent)
+- **CUDA:** Version 11.0 or higher
+- **RAM:** ≥32GB system memory
+- **Storage:** Additional ~50GB for model weights and literature corpus
+
+### Installation
+
+**1. Clone the Repository:**
+```bash
+git clone https://github.com/pvtanike/Genomic-Landscape-Based-Drug-Repurposing.git
+cd Genomic-Landscape-Based-Drug-Repurposing
+```
+
+**2. Create Python Environment:**
+```bash
+# Using conda (recommended)
+conda create -n drug_repurpose python=3.9
+conda activate drug_repurpose
+
+# Or using venv
+python -m venv drug_repurpose_env
+source drug_repurpose_env/bin/activate  # On Windows: drug_repurpose_env\Scripts\activate
+```
+
+**3. Install Required Packages:**
+```bash
+# Core dependencies for main pipeline
+pip install pandas numpy scipy statsmodels
+pip install matplotlib plotly seaborn
+pip install networkx tqdm
+pip install jupyter notebook
+
+# Additional packages for validation pipeline (if using)
+pip install transformers torch accelerate
+pip install biopython requests
+
+# If using GPU for validation
+pip install torch --extra-index-url https://download.pytorch.org/whl/cu118  # CUDA 11.8
+```
+
+**4. Download Required Databases:**
+
+See "Required Input Data Sources" section above for detailed instructions on downloading:
+- DrugBank XML (requires free academic registration)
+- STRING PPI database (public download)
+- TCGA HNSC data (via GDC Data Portal)
+- Nulton et al. supplementary data (from PMC5392278)
+- Gencode gene annotations
+
+### Quick Start
+
+**Step-by-Step Execution:**
+
+1. **Prepare Data Directory Structure:**
+```bash
+mkdir -p Data/DGIDB
+mkdir -p Data/"Protein-protein interaction data"
+mkdir -p Data/"Supplementary data Nulton"
+mkdir -p Data/TCGA/"Gene level CNV"
+mkdir -p Data/TCGA/SOM
+mkdir -p Results
+```
+
+2. **Place Required Input Files** (see directory structure above)
+
+3. **Run Analysis Pipeline:**
+```bash
+# Start Jupyter Notebook
+jupyter notebook
+
+# Execute notebooks sequentially:
+# 00 Data viewing.ipynb → Initial data exploration
+# 01 determine HPV status.ipynb → HPV stratification
+# 02 CNV identify mutation gene.ipynb → CNV analysis
+# 02.2 CNV key mutation identification.ipynb → CNV gene filtering
+# 02.50 CNV drug repurposing candidates copy.ipynb → CNV drug candidates
+# 03 SOM identify key mutation gene.ipynb → Somatic mutation analysis
+# 03.5 SOM drug repurpose.ipynb → SOM drug candidates
+# 04 SOM and CNV results comparison.ipynb → Compare CNV and SOM results
+# 05 Final result creation.ipynb → Aggregate final results
+# 06 Graph direct results.ipynb → Visualize direct drug-gene relationships
+# 07_sankey_diagram_builder.ipynb → Visualize indirect drug-gene pathways
+```
+
+4. **Optional - Literature Validation:**
+```bash
+cd "Validation pipeline"
+
+# Step 1: Extract PMIDs
+bash 00\ extract_pmids.bash
+
+# Step 2-4: Run validation notebooks sequentially
+# See "Validation Pipeline" section for detailed instructions
+```
+
+5. **Access Results:**
+```bash
+# Final output files located in:
+Results/HPV_Positive_Direct_Top50_DrugBank_Verified.csv
+Results/HPV_Negative_Direct_Top50_DrugBank_Verified.csv
+Results/HPV_Positive_Top50_PPI_Validated.csv
+Results/HPV_Negative_Top50_PPI_Validated.csv
+```
+
+### Expected Runtime
+
+**Main Pipeline (Files 00-07):**
+- File 00-01: ~30 minutes (data loading and HPV stratification)
+- File 02: ~1 hour (CNV analysis with permutation testing)
+- File 02.2-02.50: ~30 minutes (CNV drug candidates with 100,000 permutations)
+- File 03: ~30 minutes (SOM analysis with permutation testing)
+- File 03.5: ~30 minutes (SOM drug candidates with 100,000 permutations)
+- File 04: ~30 minutes (CNV and SOM comparison)
+- File 05: ~15 minutes (final aggregation)
+- File 06-07: ~30 minutes (visualization)
+- **Total: ~4 hours** (can run overnight)
+
+**Validation Pipeline (Optional):**
+- File 00: ~5 minutes (PMID extraction)
+- File 01: ~6-12 hours (abstract download)
+- File 02: ~24-72 hours (GPU extraction, depends on hardware)
+- File 03: ~30 minutes (cleaning and validation)
+- **Total: 1.5-4 days** (primarily GPU extraction time)
+
+### Computational Requirements by File
+
+**High Memory Files (≥16GB RAM):**
+- 02 CNV identify mutation gene.ipynb
+- 02.50 CNV drug repurposing candidates copy.ipynb
+- 03 SOM identify key mutation gene.ipynb
+- 03.5 SOM drug repurpose.ipynb
+- 07_sankey_diagram_builder.ipynb
+
+**High Compute Files (Multi-core beneficial):**
+- 02.50 CNV drug repurposing candidates copy.ipynb (100,000 permutations)
+- 03.5 SOM drug repurpose.ipynb (100,000 permutations)
+
+**GPU-Required Files:**
+- Validation pipeline/02 metastastis_GPU_full_extract_09_18_24.py
+
+### Dependencies
+
+**Core Python Packages:**
+```
+pandas >= 1.3.0
+numpy >= 1.21.0
+scipy >= 1.7.0
+statsmodels >= 0.13.0
+matplotlib >= 3.4.0
+plotly >= 5.3.0
+seaborn >= 0.11.0
+networkx >= 2.6.0
+tqdm >= 4.62.0
+jupyter >= 1.0.0
+```
+
+**Packages (Validation Pipeline):**
+```
+transformers >= 4.30.0
+torch >= 2.0.0
+accelerate >= 0.20.0
+biopython >= 1.79
+requests >= 2.26.0
+```
+
+**System Tools:**
+```
+NCBI E-utilities (for validation pipeline)
+CUDA Toolkit (for GPU validation pipeline)
+```
+
+<!-- ### Troubleshooting
+
+**Common Issues:**
+
+1. **Out of Memory Errors:**
+   - Reduce permutation count (e.g., 10,000 instead of 100,000)
+   - Process in batches
+   - Use machine with more RAM
+
+2. **Slow Permutation Testing:**
+   - Enable parallel processing if available
+   - Run overnight or on HPC cluster
+   - Consider reducing iterations for exploratory analysis
+
+3. **Missing Data Files:**
+   - Check "Required Input Data Sources" section
+   - Verify file paths match expected structure
+   - Ensure all required files downloaded
+
+4. **DrugBank XML Parsing Errors:**
+   - Verify DrugBank version compatibility
+   - Check XML namespace in code matches downloaded file
+   - Re-download if file corrupted
+
+5. **GPU Out of Memory (Validation Pipeline):**
+   - Reduce batch size in 02 metastastis_GPU_full_extract_09_18_24.py
+   - Use mixed precision (FP16) - already enabled
+   - Use smaller model (distilbert instead of Gemma 2B)
+
+**Getting Help:**
+- Open issue on GitHub with error message and system specs
+- Check existing issues for similar problems
+- Email contacts listed in "Contact and Support" section
 
 **Data Updates:**
 - DrugBank: Requires updated XML file for latest drug annotations
@@ -1241,15 +1704,544 @@ When using this pipeline, please cite:
 - Nulton et al. (2017) PMC5392278 for HPV status validation
 - DrugBank database
 - STRING database v12.0
-- TCGA HNSC project
+- TCGA HNSC project -->
+
+---
+
+
+
+## Validation Pipeline (Literature Mining)
+
+The Validation Pipeline is a supplementary workflow that provides literature-based validation of **gene-disease relationships** identified in the main pipeline. It uses GPU-accelerated natural language processing to extract disease targets (genes associated with head and neck cancer) from PubMed abstracts, providing independent evidence that genes identified through genomic analysis are also implicated in the disease based on published research.
+
+### Overview
+
+**Purpose:** Extract gene-disease relationships from scientific literature to validate that genomically significant genes are also recognized disease targets in published HNC research.
+
+**Approach:** GPU-accelerated NLP using the Gemma 2B language model to parse PubMed articles and identify key disease targets (genes) mentioned in head and neck cancer literature.
+
+**Integration:** Results provide evidence that genes identified through statistical analysis (Files 02-03) are also recognized in the scientific literature as relevant to head and neck cancer.
+
+### Pipeline Components
+
+#### **00 extract_pmids.bash**
+**Purpose:** Query PubMed for head and neck cancer articles and extract their PMIDs.
+
+**Key Operations:**
+- Uses NCBI E-utilities API (`esearch` and `efetch`)
+- Query: "head and neck cancer"
+- Extracts unique PubMed IDs for all matching articles
+- Requires NCBI API key (free registration at NCBI)
+
+**Setup:**
+```bash
+# Install NCBI E-utilities
+# macOS: brew install ncbi-entrez-direct
+# Linux: Follow NCBI EDirect installation guide
+
+# Set your NCBI API key
+export NCBI_API_KEY=your_api_key_here
+```
+
+**Execution:**
+```bash
+cd "Validation pipeline"
+bash 00\ extract_pmids.bash
+```
+
+**Output:**
+- `pmids.txt`: List of PubMed IDs (one per line) for head and neck cancer literature
+
+**Typical Results:**
+- ~400,000+ PMIDs for head and neck cancer publications
+
+---
+
+#### **01 extract based on pmid.ipynb**
+**Purpose:** Download abstracts and full-text content from PubMed using the extracted PMIDs.
+
+**Key Functions:**
+- `fetch_pubmed_abstract(pmid)`: Downloads abstract for a given PMID using Entrez API
+- `fetch_pmc_full_text(pmcid)`: Downloads full-text XML from PubMed Central if available
+- Batch processing with rate limiting to comply with NCBI API policies
+
+**Key Operations:**
+1. Load PMIDs from `pmids.txt`
+2. Query PubMed API for each PMID to retrieve:
+   - Article title
+   - Abstract text
+   - Publication year
+   - Authors
+   - Journal
+   - PMC ID (if full text available)
+3. Filter to articles published after year 2000 (more recent literature)
+4. Download full-text XML from PMC when available
+5. Combine abstracts and full-text into unified corpus
+6. Export to CSV for NLP processing
+
+**API Configuration:**
+- Uses Biopython `Entrez` module
+- Requires email registration with NCBI
+
+**Inputs:**
+- `pmids.txt`: List of PubMed IDs
+
+**Outputs:**
+- `Data/pubmed_abstracts.csv`: DataFrame with columns `[PMID, Title, Abstract, Year, Journal]`
+- `Data/pubmed_full_text/`: Directory with full-text XML files (when available)
+- `Data/combined_corpus.csv`: Unified text corpus for NLP processing
+
+**Estimated Runtime:** 6-12 hours for PMIDs (depends on API rate and availability)
+
+**Libraries:** pandas, Biopython (Bio.Entrez), time, requests
+
+---
+
+#### **02 GPU_full_extract.sh** and **02 GPU_full_extract.py**
+**Purpose:** GPU-accelerated NLP extraction of disease targets (genes) from PubMed literature corpus using large language models.
+
+**Architecture:**
+- **Language Model:** Google Gemma 2B (lightweight, efficient, runs on single GPU)
+- **Hardware:** NVIDIA GPU with ≥8GB VRAM (A100, V100, RTX 3090, or equivalent)
+- **Framework:** HuggingFace Transformers with PyTorch
+- **Task:** Identify key disease targets (genes implicated in head and neck cancer) from abstracts
+
+**NLP Extraction Pipeline:**
+
+1. **Data Loading:**
+   - Loads `Data/head and neck cancer query abstracts.csv` from File 01
+   - Filters to publications after year 2000 for relevance
+
+2. **Prompt Engineering:**
+   - Task description instructs model to identify disease targets from abstracts
+   - Prompt template:
+     ```
+     You are required to read the given abstract and determine any key disease targets 
+     for the cancer mentioned. Respond with the disease target, if there are multiple 
+     separate by comma. Explain your answer with the sentence where the information is found.
+     
+     Key disease targets: [Gene symbols separated by comma]
+     Sentence where information is found: [Evidence sentence from abstract]
+     ```
+
+3. **Model Inference:**
+   - Loads Gemma 2B model to GPU
+   - Processes each abstract individually through the model
+   - Max output tokens: 5000 per abstract
+   - Extracts gene targets and supporting sentences from model output
+
+4. **Post-Processing:**
+   - `extractTarget()`: Parses model output to extract gene symbols
+   - `extractSentences()`: Extracts evidence sentences where targets were mentioned
+   - Adds TARGETS and SENTENCE_WHERE_FOUND columns to working data
+
+**Shell Script (02 GPU_full_extract.sh):**
+- Batch job submission script for GPU clusters (SLURM/PBS)
+- Sets up environment: loads CUDA, Python, model weights
+- Configures GPU settings: device, memory limits
+- Launches Python extraction script with error handling
+- Monitors GPU utilization and memory
+
+**Python Script Components:**
+```python
+MODEL_NAME = "google/gemma-2b-it"  # Instruction-tuned variant
+YEAR_CUTOFF = 2000  # Only analyze recent literature
+MAX_LENGTH = 5000   # Maximum output tokens
+DEVICE = "cuda"     # GPU device
+```
+
+**Inputs:**
+- `Data/head and neck cancer query abstracts.csv`: Abstracts from File 01
+
+**Outputs:**
+- DataFrame with extracted targets: `[PMID, TITLE, YEAR, ABSTRACT, TARGETS, SENTENCE_WHERE_FOUND]`
+- Saved as CSV for downstream validation in File 03
+
+**Output Format:**
+```
+PMID, TITLE, YEAR, ABSTRACT, TARGETS, SENTENCE_WHERE_FOUND
+12345678, "TP53 mutations in HNSCC", 2010, "...", "tp53, cdkn2a", "TP53 mutations were found in 60% of tumors..."
+23456789, "EGFR signaling in HNC", 2015, "...", "egfr, pik3ca", "EGFR overexpression correlated with poor prognosis..."
+```
+
+**Computational Requirements:**
+- **GPU**: NVIDIA A100 (40GB) or V100 (32GB) recommended
+  - Can run on RTX 3090 (24GB) with reduced batch size
+  - Minimum: 8GB VRAM
+- **RAM**: ≥32GB system memory
+- **Storage**: ~50GB for model weights and intermediate files
+- **Runtime**: 24-72 hours for 100,000 articles (depends on GPU, batch size, article length)
+
+**Performance Optimization:**
+- Mixed precision (FP16): 2x speedup
+- Dynamic batching: Maximizes GPU utilization
+- Checkpoint saving: Resume from interruption
+- Multi-GPU: Can parallelize across multiple GPUs (modify script)
+
+**Error Handling:**
+- Automatic retries on CUDA out-of-memory errors (reduces batch size)
+- Checkpoint every 1,000 articles
+- Logs failed extractions for manual review
+
+**Libraries:** transformers (HuggingFace), torch (PyTorch), pandas, numpy, tqdm, accelerate
+
+---
+
+#### **03 data viewing.ipynb**
+**Purpose:** Visualize, clean, and validate literature-extracted disease targets (genes) to create a reference set of genes implicated in head and neck cancer based on published research.
+
+**Key Operations:**
+
+1. **Load Extraction Results:**
+   - Imports gene targets extracted by Gemma 2B model (File 02)
+   - Loads PPI database for gene name standardization
+   - Creates protein ID to gene name mapping dictionaries
+
+2. **Gene Symbol Standardization:**
+   - Maps protein IDs to preferred gene names using STRING database
+   - Handles gene name aliases and synonyms
+   - Converts extracted targets to standardized HUGO gene symbols
+
+3. **Quality Filtering:**
+   - Removes non-specific extractions ("no information available", "unknown", "not found")
+   - Filters to valid gene symbols present in PPI/DrugBank database
+   - Validates gene symbols against protein-coding gene lists
+   - Removes generic terms that are not actual gene symbols
+
+4. **Aggregation:**
+   - Groups by gene symbol
+   - Counts number of articles mentioning each gene
+   - Collects PMIDs supporting each gene-disease association
+   - Ranks genes by literature support (article count)
+
+**Key Visualizations:**
+
+1. **Extraction Statistics:**
+   - Total disease targets (genes) extracted
+   - Distribution of article counts per gene
+   - Most frequently mentioned genes in HNC literature
+
+2. **Gene Symbol Validation:**
+   - Bar charts showing gene extraction frequency
+
+**Data Cleaning Operations:**
+
+1. **Gene Symbol Validation:**
+   - Filters to valid HUGO gene symbols
+   - Cross-references with STRING PPI database preferred names
+   - Handles lowercase/uppercase variations
+
+2. **PMID Aggregation:**
+   - Collects all PMIDs mentioning each gene
+   - Removes duplicate PMIDs per gene
+   - Formats as comma or semicolon-separated strings
+
+**Validation of Main Pipeline Genes:**
+- Can be used to validate significant genes from Files 02 (CNV) and 03 (SOM)
+- Identifies genes with converging evidence:
+  - **Both genomic AND literature**: Highest confidence (mutated AND recognized in literature)
+
+**Inputs:**
+- Extracted targets from File 02 (GPU extraction output)
+- `Data/Protein-protein interaction data/9606.protein.info.v12.0.txt`: Gene name mapping
+- `Data/Protein-protein interaction data/9606.protein.aliases.v12.0.txt`: Gene aliases
+- `Results/CNV results/HPV positive CNV top genes.csv`: Genomically significant genes (HPV+)
+- `Results/CNV results/HPV negative CNV top genes.csv`: Genomically significant genes (HPV-)
+- `Results/SOM Results/HPV positive top genes.csv`: Genomically significant genes (HPV+)
+- `Results/SOM Results/HPV negative top genes.csv`: Genomically significant genes (HPV-)
+
+**Outputs:**
+- `Results/cleaned_extracted_targets_all_pub_after_2000_GPU_2b_gemma.csv`: Cleaned gene-disease pairs
+- `Results/cleaned_extracted_combined_targets_all_pub_after_2000_GPU_2b_gemma.csv`: Aggregated gene targets with article counts
+
+**Use as Validation:**
+- Provides independent evidence that genomically identified genes are biologically relevant
+- Helps distinguish true disease drivers from passenger mutations
+- Prioritizes genes with both genomic and literature support for drug development
+
+**Libraries:** pandas, matplotlib, plotly, numpy, tqdm
+
+---
+
+### Validation Pipeline Workflow Summary
+
+**Complete Pipeline Execution:**
+
+```bash
+# Step 1: Extract PMIDs (5 minutes)
+cd "Validation pipeline"
+bash 00\ extract_pmids.bash
+
+# Step 2: Download abstracts (6-12 hours)
+jupyter notebook "01 extract based on pmid.ipynb"
+# Run all cells
+
+# Step 3: GPU extraction (24-72 hours, requires GPU)
+# Option A: Submit to GPU cluster
+sbatch 02\ GPU_full_extract.sh
+
+# Option B: Run locally with GPU
+python 02\ GPU_full_extract.py
+
+# Step 4: Clean and export results (30 minutes)
+jupyter notebook "03 data viewing.ipynb"
+```
+
+**Purpose of Validation:**
+This pipeline provides **independent confirmation** that genes identified through genomic analysis are also recognized in published HNC research, increasing confidence in their biological relevance.
+
+**What Gets Validated:**
+- Genes from File 02 (CNV analysis): Are amplified/deleted genes mentioned in HNC literature?
+- Genes from File 03 (SOM analysis): Are mutated genes mentioned in HNC literature?
+
+**Interpretation:**
+- **High confidence genes**: Significant in genomics AND mentioned in literature
+
+**When to Run Validation Pipeline:**
+- **After Files 02-03:** To validate gene discoveries before drug candidate identification
+- **Before integrating with main pipeline results:** To enhance drug-gene relationship confidence
+- **Integrated in file 05 Final result creation.ipynb:** To annotate drugs with literature-validated targets
+
+**Note:** This validation pipeline does NOT extract or validate drug-gene interactions. Drug-gene relationships come from DrugBank database in the main pipeline.
+
+**Computational Cost:**
+- **Without GPU:** Not feasible (NLP extraction too slow with CPU)
+- **With GPU (A100):** ~36 hours total compute time
+- **With GPU (RTX 3090):** ~60 hours total compute time
+- **Cost estimate (cloud GPU):** ~$50-100 on AWS/GCP/Azure
+
+**Alternative Approach (if no GPU available):**
+- Use cloud-based GPU instances (AWS EC2 p3.2xlarge, GCP Compute Engine with T4/V100)
+- Use university/institutional HPC clusters with GPU nodes
+- Skip validation pipeline and rely solely on DrugBank annotations (less comprehensive)
+
+---
+
+### Validation Pipeline Output Integration
+
+**How Literature Validation Enhances Results:**
+
+1. **Confidence improvements:**
+   - Drugs with both DrugBank annotation AND literature support = highest confidence
+
+2. **Evidence Traceability:**
+   - PMIDs provide direct links to supporting publications
+   - Enables manual verification of drug-gene relationships
+
+3. **Novel Discovery Prioritization:**
+   - Prioritizes repurposing candidates with translational potential
+
+**Example Enhanced Result:**
+```
+Drug: Afatinib
+DrugBank Targets: EGFR, ERBB2, ERBB4
+Literature-Validated Targets: EGFR, ERBB2 (87 articles)
+Risk Genes Connected via PPI: PIK3CA, AKT1, MTOR (23 articles)
+PMIDs: 25316818;26177326;27542767;... (PMIDs for EGFR targeting)
+Interpretation: Strong evidence (genomic + literature + PPI) for repurposing in HPV+ HNSCC
+```
+---
+
+## Data Availability and Reproducibility
+
+### Data Availability
+
+**Public Datasets:**
+- **TCGA HNSC Data:** Available via NCI Genomic Data Commons (GDC) Data Portal
+  - URL: https://portal.gdc.cancer.gov/projects/TCGA-HNSC
+  - Access: Open access (no authentication required for most data types)
+  - Data Type: Copy number variation (CNV) and somatic mutation (SOM) data
+  
+- **DrugBank:** Available via DrugBank Online
+  - URL: https://go.drugbank.com/releases/latest
+  - Access: Free academic account required
+  - Format: XML download
+  
+- **STRING PPI Database:** Available via STRING website
+  - URL: https://string-db.org/cgi/download
+  - Access: Open access
+  - Version: v12.0 (update to latest as needed)
+  
+- **Nulton et al. Supplementary Data:** Available via PubMed Central
+  - URL: https://pmc.ncbi.nlm.nih.gov/articles/PMC5392278/
+  - Access: Open access
+  - Format: CSV files in supplementary materials
+
+- **Gencode Gene Annotations:** Available via Gencode
+  - URL: https://www.gencodegenes.org/human/
+  - Access: Open access
+  - Version: Release 48 or later (GRCh38)
+
+**Processed Results:**
+- Final output files are included in this repository under `Results/` directory
+- Intermediate files can be regenerated by running the pipeline
+- Literature validation results (if generated) are available upon request
+
+---
+
+## Repository Information
+
+**Repository:** [Genomic-Landscape-Based-Drug-Repurposing](https://github.com/pvtanike/Genomic-Landscape-Based-Drug-Repurposing)
+
+**Owner:** pvtanike
+
+**Current Branch:** main
+
+**License:** [Specify license - e.g., MIT, GPL-3.0, or proprietary]
+
+**Citation:** If you use this pipeline in your research, please cite:
+```
+[Authors]. Genomic Landscape-Based Drug Repurposing for Head and Neck Cancer.
+GitHub repository: https://github.com/pvtanike/Genomic-Landscape-Based-Drug-Repurposing (2025)
+```
+
+**Contributing:**
+- Issues and pull requests are welcome
+- For major changes, please open an issue first to discuss proposed changes
+- Follow existing code style and documentation standards
 
 ---
 
 ## Contact and Support
 
-For questions about this pipeline, please refer to the Wu Lab:
-   - did@live.unc.edu
-   - pvtanike@live.unc.edu
+For questions about this pipeline, please contact:
+
+**Wu Lab - University of North Carolina at Chapel Hill:**
+- Primary Contact: did@live.unc.edu 
+- Secondary Contact: pvtanike@live.unc.edu
+
+**Bug Reports and Feature Requests:**
+- Open an issue on the [GitHub repository](https://github.com/pvtanike/Genomic-Landscape-Based-Drug-Repurposing/issues)
+
+**Collaboration Inquiries:**
+- Email the contacts above with subject line: "Drug Repurposing Pipeline Collaboration"
 
 **Key References:**
 - Nulton TJ, et al. (2017). Analysis of The Cancer Genome Atlas sequencing data reveals novel properties of the human papillomavirus 16 genome in head and neck squamous cell carcinoma. Oncotarget. 8(11):17684-17699. PMCID: PMC5392278
+
+---
+
+## Acknowledgments
+
+**Data Sources:**
+- The Cancer Genome Atlas (TCGA) Research Network
+- National Cancer Institute (NCI) Genomic Data Commons (GDC)
+- DrugBank (University of Alberta and The Metabolomics Innovation Centre)
+- STRING Database (CPR and EMBL)
+- NCBI PubMed and PubMed Central
+- Gencode (EMBL-EBI and University of California, Santa Cruz)
+
+**Software and Tools:**
+- Python Scientific Computing Stack (NumPy, SciPy, pandas)
+- Plotly and Matplotlib visualization libraries
+- NetworkX graph analysis library
+- HuggingFace Transformers and PyTorch
+- Jupyter Notebook interactive computing environment
+
+**Research Support:**
+- Wu Lab, University of North Carolina at Chapel Hill
+- [Add funding sources if applicable]
+
+**Special Thanks:**
+- Nulton TJ et al. for HPV status validation
+- TCGA consortium for data generation and access
+- Open-source software community
+
+---
+
+## Version History
+
+**Version 1.0 (December 2025):**
+- Initial public release
+- Complete main pipeline (Files 00-07)
+- Optional validation pipeline
+- Comprehensive documentation
+
+**Planned Updates:**
+- Integration with additional databases (ClinicalTrials.gov, COSMIC)
+- Enhanced visualization tools (interactive web dashboard)
+- Machine learning-based prioritization
+- Multi-cancer application framework
+
+---
+
+<!-- ## License
+
+[Specify license here - common options:]
+- MIT License (permissive, allows commercial use)
+- GPL-3.0 (copyleft, requires derivative works to be open source)
+- CC BY 4.0 (Creative Commons Attribution for documentation/data)
+- Proprietary/Custom (if institutional requirements)
+
+[Example - uncomment and modify as appropriate:]
+```
+MIT License
+
+Copyright (c) 2025 Wu Lab, University of North Carolina at Chapel Hill
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+``` -->
+
+---
+
+<!-- ## Frequently Asked Questions (FAQ)
+
+**Q1: How long does it take to run the complete pipeline?**
+A: Main pipeline: 14-24 hours. Validation pipeline (optional): 1.5-4 days (primarily GPU extraction).
+
+**Q2: Can I run this pipeline without access to a GPU?**
+A: Yes! The main pipeline (Files 00-07) does not require a GPU. Only the optional validation pipeline (literature mining) requires GPU acceleration.
+
+**Q3: What if DrugBank requires a paid license at my institution?**
+A: Academic licenses are typically free. Contact DrugBank support for academic access. Alternatively, use DGIdb as a substitute (though less comprehensive).
+
+**Q4: Can I apply this pipeline to other cancer types?**
+A: Yes! Replace TCGA HNSC data with data from other cancer types (e.g., BRCA, LUAD). Modify HPV stratification logic as appropriate for the cancer type.
+
+**Q5: How do I choose between direct and indirect drug candidates?**
+A: Direct candidates have stronger evidence (drug directly targets mutated gene). Indirect candidates may have broader pathway effects. Consider both for comprehensive therapeutic options.
+
+**Q6: What if my results differ slightly from the published outputs?**
+A: Minor differences expected due to: (1) stochastic permutation testing, (2) DrugBank database updates, (3) PubMed content changes. Set random seeds for exact reproducibility.
+
+**Q7: Can I modify the statistical thresholds?**
+A: Yes! All thresholds are defined in the notebooks and can be adjusted. However, lowering significance thresholds (e.g., FDR < 0.1) increases false positives.
+
+**Q8: How do I cite this pipeline?**
+A: See "Citation" section under "Repository Information" above. Include GitHub repository URL and access date.
+
+**Q9: Is patient-level clinical data included?**
+A: Clinical data exploration is included in File 00 (age, gender, diagnosis). TCGA provides additional clinical variables via GDC portal.
+
+**Q10: Can I contribute to this project?**
+A: Yes! See "Contributing" section under "Repository Information". Open issues for bugs/features, submit pull requests for enhancements. -->
+
+---
+
+**Last Updated:** December 12, 2025
+
+**README Version:** 1.0
+
+**Pipeline Version:** 1.0
+
+---
+
+*For the latest updates and documentation, visit the [GitHub repository](https://github.com/pvtanike/Genomic-Landscape-Based-Drug-Repurposing).*
+
+---

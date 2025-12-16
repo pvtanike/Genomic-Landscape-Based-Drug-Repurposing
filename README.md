@@ -17,7 +17,7 @@
    - [01 determine HPV status.ipynb](#01-determine-hpv-statusipynb)
    - [02 CNV identify mutation gene.ipynb](#02-cnv-identify-mutation-geneipynb)
    - [02.2 CNV key mutation identification.ipynb](#022-cnv-key-mutation-identificationipynb)
-   - [02.50 CNV drug repurposing candidates copy.ipynb](#0250-cnv-drug-repurposing-candidates-copyipynb)
+   - [02.50 CNV drug repurposing candidates.ipynb](#0250-cnv-drug-repurposing-candidates-copyipynb)
    - [03 SOM identify key mutation gene.ipynb](#03-som-identify-key-mutation-geneipynb)
    - [03.5 SOM drug repurpose.ipynb](#035-som-drug-repurposeipynb)
    - [04 SOM and CNV results comparison.ipynb](#04-som-and-cnv-results-comparisonipynb)
@@ -108,7 +108,6 @@ The final outputs include curated tables of drug repurposing candidates with Dru
 │ • Indirect (PPI) cand.   │                                     │
 │ Output: CNV drug cand.   │                                     │
 │   (HPV+/HPV-)            │                                     │
-└──────────────────────────┘                                     │
 └──────────────────────────┘                                     │
                │                                                 │
                └───────────────────┬─────────────────────────────┘
@@ -302,14 +301,12 @@ Genetic based drug repurposing Nulton cohort/
 ├── 01 determine HPV status.ipynb
 ├── 02 CNV identify mutation gene.ipynb
 ├── 02.2 CNV key mutation identification.ipynb
-├── 02.50 CNV drug repurposing candidates copy.ipynb
+├── 02.50 CNV drug repurposing candidates.ipynb
 ├── 03 SOM identify key mutation gene.ipynb
 ├── 03.5 SOM drug repurpose.ipynb
 ├── 04 SOM and CNV results comparison.ipynb
 ├── 05 Final result creation.ipynb
 ├── 06 Graph direct results.ipynb
-├── 06 Graph results.ipynb
-├── 07 graph indirect results.ipynb
 ├── 07_sankey_diagram_builder.ipynb
 ├── README.md
 │
@@ -349,7 +346,7 @@ Genetic based drug repurposing Nulton cohort/
 │       └── SOM/                             # REQUIRED: Somatic mutation data
 │           ├── cohortMAF.2025-07-29.maf     # Original MAF file from TCGA
 │           ├── nulton_somatic_mutation_cohort.csv   # Filtered to Nulton cohort (generated)
-│           └── gencode.v48.annotation.gtf   # Gene annotations, extracted from gencode to determine chromosme lengths
+│           └── gencode.v48.annotation.gtf   # Gene annotations, extracted from GENCODE to determine gene CDS lengths
 │
 ├── Results/                                 # OUTPUT DATA (pipeline generates)
 │   │
@@ -398,8 +395,8 @@ Genetic based drug repurposing Nulton cohort/
 └── Validation pipeline/                     # Literature validation (optional but recommended)
     ├── 00 extract_pmids.bash                # PubMed ID extraction using NCBI E-utilities
     ├── 01 extract based on pmid.ipynb       # Download abstracts/full text from PubMed
-    ├── 02 metastasis_GPU_full_extract_09_18_24.sh      # GPU NLP extraction script
-    ├── 02 metastastis_GPU_full_extract_09_18_24.py     # Python GPU NLP extraction code
+    ├── 02 GPU_full_extract.sh               # GPU NLP extraction script
+    ├── 02 GPU_full_extract.py               # Python GPU NLP extraction code
     ├── 03 data viewing.ipynb                # Visualize and clean extracted drug-gene pairs
     ├── pmids.txt                            # List of PubMed IDs for head and neck cancer
     ├── Data/                                # Literature mining input data
@@ -437,13 +434,13 @@ Genetic based drug repurposing Nulton cohort/
     - Download via GDC Data Portal: Data Category = "Simple Nucleotide Variation"
     - File Type = "Masked Somatic Mutation" (cohort-level MAF file)
 
-**4. Chromosome lenghts (Data/TCGA/SOM/gencode.v48.annotation):**
-- Source: https://www.gencodegenes.org
-- Version: Release 49 (GRCh38.p14)
-- Required data files:
-   - comprehensive gene annotation
-      - comprehensive gene annotation on refernce chromosomes
-   - provides length of genes for analysis 
+**4. Chromosome lengths (Data/TCGA/SOM/gencode.v48.annotation.gtf):**
+- **Source**: https://www.gencodegenes.org
+- **Version**: Release 48 (GRCh38.p13)
+- **Required data files**:
+   - Comprehensive gene annotation (GTF format)
+   - Comprehensive gene annotation on reference chromosomes
+   - Provides CDS lengths of genes for gene-length-normalized mutation analysis 
 
 **5. Nulton et al. Supplementary Data** (`Data/Supplementary data Nulton/`)
 - **Source**: https://pmc.ncbi.nlm.nih.gov/articles/PMC5392278/
@@ -728,7 +725,7 @@ This is a quality control and refinement notebook that:
 
 ---
 
-### **02.50 CNV drug repurposing candidates copy.ipynb**
+### **02.50 CNV drug repurposing candidates.ipynb**
 **Purpose:** Identify direct and indirect drug repurposing candidates based on significantly altered CNV genes.
 
 **Key Statistical Methods:**
@@ -1564,7 +1561,7 @@ jupyter notebook
 # 01 determine HPV status.ipynb → HPV stratification
 # 02 CNV identify mutation gene.ipynb → CNV analysis
 # 02.2 CNV key mutation identification.ipynb → CNV gene filtering
-# 02.50 CNV drug repurposing candidates copy.ipynb → CNV drug candidates
+# 02.50 CNV drug repurposing candidates.ipynb → CNV drug candidates
 # 03 SOM identify key mutation gene.ipynb → Somatic mutation analysis
 # 03.5 SOM drug repurpose.ipynb → SOM drug candidates
 # 04 SOM and CNV results comparison.ipynb → Compare CNV and SOM results
@@ -1617,17 +1614,17 @@ Results/HPV_Negative_Top50_PPI_Validated.csv
 
 **High Memory Files (≥16GB RAM):**
 - 02 CNV identify mutation gene.ipynb
-- 02.50 CNV drug repurposing candidates copy.ipynb
+- 02.50 CNV drug repurposing candidates.ipynb
 - 03 SOM identify key mutation gene.ipynb
 - 03.5 SOM drug repurpose.ipynb
 - 07_sankey_diagram_builder.ipynb
 
 **High Compute Files (Multi-core beneficial):**
-- 02.50 CNV drug repurposing candidates copy.ipynb (100,000 permutations)
+- 02.50 CNV drug repurposing candidates.ipynb (100,000 permutations)
 - 03.5 SOM drug repurpose.ipynb (100,000 permutations)
 
 **GPU-Required Files:**
-- Validation pipeline/02 metastastis_GPU_full_extract_09_18_24.py
+- Validation pipeline/02 GPU_full_extract.py
 
 ### Dependencies
 
@@ -1685,7 +1682,7 @@ CUDA Toolkit (for GPU validation pipeline)
    - Re-download if file corrupted
 
 5. **GPU Out of Memory (Validation Pipeline):**
-   - Reduce batch size in 02 metastastis_GPU_full_extract_09_18_24.py
+   - Reduce batch size in 02 GPU_full_extract.py
    - Use mixed precision (FP16) - already enabled
    - Use smaller model (distilbert instead of Gemma 2B)
 

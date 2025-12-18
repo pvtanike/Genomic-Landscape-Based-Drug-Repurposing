@@ -173,6 +173,123 @@ The final outputs include curated tables of drug repurposing candidates with Dru
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+<!-- ---
+
+## Statistical Methodology and Justification
+
+### Overview of Statistical Framework
+
+This pipeline employs a rigorous dual-validation statistical framework combining parametric tests with non-parametric empirical validation. All analyses control for multiple testing using Benjamini-Hochberg FDR correction.
+
+### 1. Gene-Level Significance Testing
+
+#### CNV Analysis (Copy Number Variation)
+
+**Primary Test: Binomial Test (Right-tailed)**
+- **Rationale**: Models high-level CNV events as Bernoulli trials (present/absent in each sample)
+- **Null Hypothesis**: Gene experiences CNV events at the genome-wide background rate
+- **Test Statistic**: X ~ Binomial(n, p_null), where:
+  - n = number of samples in cohort
+  - p_null = cohort-specific background CNV rate
+  - X = number of samples with high-level CNV in focal gene
+- **Threshold**: CNV > 4 (amplification) or CNV < 1 (deletion)
+
+**Empirical Validation: Bootstrap Permutation Test (1,000 iterations)**
+- **Rationale**: Validates binomial assumptions using cohort's actual CNV distribution
+- **Method**: Bootstrap sample n values from pooled CNV data, count threshold exceedances
+- **Advantage**: Accounts for non-normal CNV distributions and outliers
+- **Note**: Does NOT shuffle HPV labels; tests against genomic instability baseline
+
+**Key Assumptions**:
+- CNV events are independent across samples (reasonable for somatic alterations)
+- Background rate adequately captures genome-wide instability
+- High-level thresholds (>4, <1) define biologically relevant alterations
+
+#### SOM Analysis (Somatic Mutations)
+
+**Primary Test: Length-Normalized Binomial Test**
+- **Rationale**: Accounts for varying gene lengths (longer genes have more mutation opportunities)
+- **Null Hypothesis**: Mutations distributed proportionally to CDS length
+- **Probability**: p_g = L_g / L_total (gene length / total coding genome length)
+- **Test Statistic**: K_g ~ Binomial(N, p_g), where:
+  - N = total mutations in cohort
+  - K_g = observed mutations in gene g
+
+**Empirical Validation: Multinomial Monte Carlo (10,000 iterations)**
+- **Rationale**: Accounts for dependency between genes (mutations must sum to N)
+- **Method**: Draw mutation counts for all genes simultaneously from Multinomial(N, **p**)
+- **Advantage**: Properly models constraint that total mutations is fixed
+- **Superior to**: Independent permutations which violate this constraint
+
+**Key Assumptions**:
+- Mutations occur randomly conditional on gene length under null
+- CDS length is appropriate measure (excludes non-coding regions)
+- Non-synonymous mutations are functionally relevant
+
+### 2. Drug Enrichment Testing
+
+#### Hypergeometric Test (Over-representation)
+
+**Primary Test: Right-tailed Hypergeometric**
+- **Rationale**: Classic urn model for testing over-representation
+- **Null Hypothesis**: Drug targets randomly distributed among druggable genes
+- **Parameters**:
+  - M = total druggable genes in universe
+  - K = significant genes (from CNV/SOM analysis)
+  - n = drug's target gene count
+  - x = overlap (drug targets ∩ significant genes)
+- **Test**: P(X ≥ x) where X ~ Hypergeometric(M, K, n)
+
+**Empirical Validation: Permutation Test (100,000 iterations)**
+- **Rationale**: Validates that enrichment isn't due to network topology or annotation biases
+- **Method**: Randomly select n genes from druggable universe, recalculate enrichment
+- **Null Distribution**: Empirical distribution of overlaps under random gene selection
+- **Advantage**: Accounts for non-uniform gene properties (degree, pleiotropy, etc.)
+
+**Key Assumptions**:
+- DrugBank represents unbiased druggable universe (reasonable approximation)
+- Drug-gene interactions are independent (conservative assumption)
+- Significant genes are representative of altered biological processes
+
+### 3. Multiple Testing Correction
+
+**Method: Benjamini-Hochberg FDR Procedure**
+- **Rationale**: Controls false discovery rate while maintaining power
+- **Threshold**: FDR < 0.05 (5% expected false discoveries)
+- **Applied to**:
+  - CNV genes: ~20,000 tests × 4 (amp/del × HPV+/-)
+  - SOM genes: ~20,000 tests × 2 (HPV+/-)
+  - Drugs: Hundreds of drugs per analysis
+- **Total**: >80,000 tests across full pipeline
+
+**Why FDR instead of FWER?**
+- FWER (e.g., Bonferroni) is too conservative for exploratory genomics
+- FDR provides better balance between discovery and false positives
+- Standard in genomics literature (widely accepted)
+
+### 4. Statistical Power Considerations
+
+**Sample Sizes**:
+- HPV+ cohort: n=72 (limited power for rare events)
+- HPV- cohort: n=448 (adequate power for moderate effect sizes)
+
+**Implications**:
+- HPV+ analyses may miss genes altered in <10% of patients
+- Conservative thresholds compensate for multiple testing
+- Dual validation (parametric + empirical) increases confidence
+
+**Sensitivity Analysis**:
+- Frequency thresholds vary by cohort size (higher for HPV+)
+- GISTIC score thresholds calibrated to distributions
+- Empirical p-values provide robustness check
+
+### 5. Reproducibility
+
+**Random Seeds**: Set to 42 for all stochastic procedures
+**Software Versions**: Documented in requirements.txt
+**Thresholds**: All cutoffs explicitly documented
+**Data Availability**: TCGA public data with case IDs provided -->
+
 ---
 <!-- 
 ## Key Statistical Methodology
@@ -354,15 +471,19 @@ Genetic based drug repurposing Nulton cohort/
 │   │   ├── HPV positive patients.csv        # Generated by 01: List of HPV+ case IDs
 │   │   └── HPV negative patients.csv        # Generated by 01: List of HPV- case IDs
 │   │
-│   ├── CNV results/                         # Copy number variation results
-│   │   ├── HPV positive CNV top genes.csv   # Generated by 02: Significant HPV+ CNV genes
-│   │   ├── HPV negative CNV top genes.csv   # Generated by 02: Significant HPV- CNV genes
+│   ├── CNV results/                         # Copy number variation results (intermediate)
+│   │   ├── HPV positive CNV top genes.csv   # Generated by 02.2: Significant HPV+ CNV genes
+│   │   ├── HPV negative CNV top genes.csv   # Generated by 02.2: Significant HPV- CNV genes
 │   │   ├── HPV Positive Top Direct Drug Candidates Aggregated.csv    # Generated by 02.50
 │   │   ├── HPV Negative Top Direct Drug Candidates Aggregated.csv    # Generated by 02.50
 │   │   ├── HPV Positive Top Indirect Drug Candidates Aggregated.csv  # Generated by 02.50
-│   │   └── HPV Negative Top Indirect Drug Candidates Aggregated.csv  # Generated by 02.50
+│   │   ├── HPV Negative Top Indirect Drug Candidates Aggregated.csv  # Generated by 02.50
+│   │   ├── hpv_pos_amp_top_drugBank_drug_candidates.csv   # Individual CNV amp results
+│   │   ├── hpv_pos_del_top_drugBank_drug_candidates.csv   # Individual CNV del results
+│   │   ├── hpv_neg_amp_top_drugBank_drug_candidates.csv   # Individual CNV amp results
+│   │   └── hpv_neg_del_top_drugBank_drug_candidates.csv   # Individual CNV del results
 │   │
-│   ├── SOM results/                         # Somatic mutation results
+│   ├── SOM results/                         # Somatic mutation results (intermediate)
 │   │   ├── HPV positive top genes.csv       # Generated by 03: Significant HPV+ SOM genes
 │   │   ├── HPV negative top genes.csv       # Generated by 03: Significant HPV- SOM genes
 │   │   ├── hpv_positive_som_top_direct_drug_candidates_agg.csv    # Generated by 03.5
@@ -370,27 +491,21 @@ Genetic based drug repurposing Nulton cohort/
 │   │   ├── hpv_positive_som_top_indirect_drug_candidates_agg.csv  # Generated by 03.5
 │   │   └── hpv_negative_som_top_indirect_drug_candidates_agg.csv  # Generated by 03.5
 │   │
-│   ├── HPV positive gene results.csv        # Generated by 05: Final unified HPV+ genes (CNV+SOM)
-│   ├── HPV negative gene results.csv        # Generated by 05: Final unified HPV- genes (CNV+SOM)
+│   ├── HPV positive gene results.csv        # Generated by 05: Intermediate unified HPV+ genes (CNV+SOM)
+│   ├── HPV negative gene results.csv        # Generated by 05: Intermediate unified HPV- genes (CNV+SOM)
 │   │
-│   ├── HPV Positive direct results.csv      # Generated by 05: All HPV+ direct drug candidates
-│   ├── HPV Negative direct results.csv      # Generated by 05: All HPV- direct drug candidates
-│   ├── HPV Positive indirect results.csv    # Generated by 05: All HPV+ indirect drug candidates
-│   ├── HPV Negative indirect results.csv    # Generated by 05: All HPV- indirect drug candidates
+│   ├── HPV Positive direct results.csv      # Generated by 05: Intermediate HPV+ direct drug candidates
+│   ├── HPV Negative direct results.csv      # Generated by 05: Intermediate HPV- direct drug candidates
+│   ├── HPV Positive indirect results.csv    # Generated by 05: Intermediate HPV+ indirect drug candidates
+│   ├── HPV Negative indirect results.csv    # Generated by 05: Intermediate HPV- indirect drug candidates
 │   │
-│   ├── HPV_Positive_Direct_Top50_DrugBank_Verified.csv    # Generated by 06: Top 50 HPV+ direct
-│   ├── HPV_Negative_Direct_Top50_DrugBank_Verified.csv    # Generated by 06: Top 50 HPV- direct
-│   │
-│   ├── HPV_Positive_Top50_PPI_Validated.csv               # Generated by 07: Top 50 HPV+ indirect
-│   ├── HPV_Negative_Top50_PPI_Validated.csv               # Generated by 07: Top 50 HPV- indirect
-│   │
-│   └── [Legacy individual result files]:
-│       ├── hpv_pos_amp_top_drugBank_drug_candidates.csv   # Individual CNV amp results
-│       ├── hpv_pos_del_top_drugBank_drug_candidates.csv   # Individual CNV del results
-│       ├── hpv_pos_som_top_drugBank_drug_candidates.csv   # Individual SOM results
-│       ├── hpv_neg_amp_top_drugBank_drug_candidates.csv   # Individual CNV amp results
-│       ├── hpv_neg_del_top_drugBank_drug_candidates.csv   # Individual CNV del results
-│       └── hpv_neg_som_top_drugBank_drug_candidates.csv   # Individual SOM results
+│   └── Final Results/                       # FINAL OUTPUTS
+│       ├── HPV Positive validated genes.csv              # Generated by 05: Final validated HPV+ genes
+│       ├── HPV Negative validated genes.csv              # Generated by 05: Final validated HPV- genes
+│       ├── HPV Positive Validated direct candidates.csv  # Generated by 06: Top HPV+ direct drugs (DrugBank verified)
+│       ├── HPV Negative Validated direct candidates.csv  # Generated by 06: Top HPV- direct drugs (DrugBank verified)
+│       ├── HPV Positive Validated indirect candidates.csv # Generated by 07: Top HPV+ indirect drugs (PPI validated)
+│       └── HPV Negative Validated indirect candidates.csv # Generated by 07: Top HPV- indirect drugs (PPI validated)
 │
 └── Validation pipeline/                     # Literature validation (optional but recommended)
     ├── 00 extract_pmids.bash                # PubMed ID extraction using NCBI E-utilities
@@ -461,27 +576,34 @@ Genetic based drug repurposing Nulton cohort/
 
 ### Output File Descriptions
 
-**Key Final Outputs** (used for publication/analysis):
+**Key Final Outputs** (Output files in `Results/Final Results/`):
 
 | File | Generated By | Description |
 |------|--------------|-------------|
-| `HPV positive gene results.csv` | File 05 | Final unified list of significant genes in HPV+ cohort (CNV + SOM) |
-| `HPV negative gene results.csv` | File 05 | Final unified list of significant genes in HPV- cohort (CNV + SOM) |
-| `HPV Positive direct results.csv` | File 05 | All direct drug candidates for HPV+ (drug→gene) |
-| `HPV Negative direct results.csv` | File 05 | All direct drug candidates for HPV- (drug→gene) |
-| `HPV Positive indirect results.csv` | File 05 | All indirect drug candidates for HPV+ (drug→target→gene via PPI) |
-| `HPV Negative indirect results.csv` | File 05 | All indirect drug candidates for HPV- (drug→target→gene via PPI) |
-| `HPV_Positive_Direct_Top50_DrugBank_Verified.csv` | File 06 | **Top 50 HPV+ direct drugs** with DrugBank action verification |
-| `HPV_Negative_Direct_Top50_DrugBank_Verified.csv` | File 06 | **Top 50 HPV- direct drugs** with DrugBank action verification |
-| `HPV_Positive_Top50_PPI_Validated.csv` | File 07 | **Top 50 HPV+ indirect drugs** with PPI network validation |
-| `HPV_Negative_Top50_PPI_Validated.csv` | File 07 | **Top 50 HPV- indirect drugs** with PPI network validation |
+| `HPV Positive validated genes.csv` | File 05 | **FINAL** validated HPV+ genes with literature support (CNV + SOM) |
+| `HPV Negative validated genes.csv` | File 05 | **FINAL** validated HPV- genes with literature support (CNV + SOM) |
+| `HPV Positive Validated direct candidates.csv` | File 06 | **FINAL** HPV+ direct drugs with DrugBank action verification |
+| `HPV Negative Validated direct candidates.csv` | File 06 | **FINAL** HPV- direct drugs with DrugBank action verification |
+| `HPV Positive Validated indirect candidates.csv` | File 07 | **FINAL** HPV+ indirect drugs with PPI network validation |
+| `HPV Negative Validated indirect candidates.csv` | File 07 | **FINAL** HPV- indirect drugs with PPI network validation |
 
-**Intermediate Outputs** (used within pipeline):
+**Intermediate Outputs** (used within pipeline, stored in `Results/`):
+
+| File | Generated By | Description |
+|------|--------------|-------------|
+| `HPV positive gene results.csv` | File 05 | Intermediate unified HPV+ genes (CNV + SOM) |
+| `HPV negative gene results.csv` | File 05 | Intermediate unified HPV- genes (CNV + SOM) |
+| `HPV Positive direct results.csv` | File 05 | Intermediate HPV+ direct drug candidates (all) |
+| `HPV Negative direct results.csv` | File 05 | Intermediate HPV- direct drug candidates (all) |
+| `HPV Positive indirect results.csv` | File 05 | Intermediate HPV+ indirect drug candidates (all) |
+| `HPV Negative indirect results.csv` | File 05 | Intermediate HPV- indirect drug candidates (all) |
+
+**Pipeline Intermediate Outputs** (supporting files):
 
 - `Results/HPV results/`: HPV stratification (Generated in File 01)
-- `Results/CNV results/`: CNV-based gene and drug findings (Generated in Files 02, 02.50)
+- `Results/CNV results/`: CNV-based gene and drug findings (Generated in Files 02, 02.2, 02.50)
 - `Results/SOM results/`: SOM-based gene and drug findings (Generated in Files 03, 03.5)
-- Legacy individual result files: Pre-aggregation drug candidates
+- Individual mutation type files: Pre-aggregation drug candidates (amp, del, somatic separate)
 
 ---
 
@@ -560,14 +682,19 @@ Genetic based drug repurposing Nulton cohort/
 1. **Binomial Test:** Tests if the CNV of gene amplification/deletion in a cohort exceeds background rates.
    - Null hypothesis: Gene alteration = background rate observed across all genes
    - Alternative hypothesis: Gene alteration > background rate (right-tailed test)
+   - **Background rate calculation**: Cohort-specific rate computed as the proportion of all CNV observations (across all genes and samples) that exceed the threshold
+     - For amplifications: p_null = (total CNV > 4 events) / (total CNV observations)
+     - For deletions: p_null = (total CNV < 1 events) / (total CNV observations)
+   - This accounts for genome-wide instability patterns specific to each HPV status group
    
 2. **Multiple Testing Correction:** Uses Benjamini-Hochberg FDR correction to control false discovery rate across thousands of genes tested.
 
-3. **Empirical Permutation Testing:** Validates statistical significance by permuting CNV status labels 1,000 times to generate null distribution.
-   - Null distribution: Randomly shuffle HPV status labels among patients
-   - Null hypothesis: Observed gene alteration frequency is due to chance
-   - Alternative hypothesis: Observed gene alteration frequency is greater than chance
-      - P-value calculated as proportion of permutations with equal or greater alteration frequency than observed
+3. **Empirical Permutation Testing:** Validates statistical significance through bootstrap sampling from the pooled CNV distribution (1,000 iterations).
+   - Null distribution: Randomly sample n CNV values (with replacement) from the entire cohort's CNV distribution across all genes
+   - Null hypothesis: Observed gene alteration frequency could occur by chance given the cohort's overall genomic instability pattern
+   - Alternative hypothesis: Observed gene alteration frequency exceeds what random sampling would produce
+   - Method: For each gene, sample n values from permuted CNV pool, count how many exceed threshold (CNV>4 for amplifications, CNV<1 for deletions)
+   - P-value: Proportion of permutations where simulated count ≥ observed count
 
 4. **Calculates GISTIC type scores**: calculates GISTIC score as the amplification or deletion value summed across the cohort multiplied by the frequency of amplification/deletion across the cohort
 
@@ -939,7 +1066,7 @@ This is a quality control and refinement notebook that:
 ---
 
 ### **04 SOM and CNV results comparison.ipynb**
-**Purpose:** Compare and integrate drug candidates identified from CNV (amplifications/deletions) and somatic mutation analyses.
+**Purpose:** Compare and visualize overlap between drug candidates identified from CNV (amplifications/deletions) and somatic mutation analyses. This is an exploratory/comparison notebook only - it does not produce output files.
 
 **Key Analyses:**
 
@@ -951,38 +1078,41 @@ This is a quality control and refinement notebook that:
 2. **Drug-Level Overlap:**
    - Identifies drugs that target genes from multiple mutation sources
    - Calculates overlap between amplification, deletion, and somatic drug candidates
-   - Prioritizes drugs targeting genes with converging evidence
+   - Visualizes drugs targeting genes with converging evidence
 
-3. **Aggregation:**
-   - Combines drug candidates across mutation types (CNV + SOM)
-   - Groups by drug and concatenates targeted genes
-   - Selects minimum FDR values across sources for prioritization
+3. **Comparison Metrics:**
+   - Calculates Venn diagram statistics for gene and drug overlaps
+   - Identifies drugs appearing in all three categories (amp, del, somatic)
+   - Counts number of unique targeted genes and connected genes per drug
 
 **Key Operations:**
-- Loads CNV drug candidates (amp, del) for HPV+ and HPV-
+- Loads individual CNV drug candidates (amp, del) for HPV+ and HPV-
 - Loads SOM drug candidates for HPV+ and HPV-
-- Calculates Venn diagram statistics for gene and drug overlaps
-- Identifies drugs appearing in all three categories (amp, del, somatic)
-- Aggregates information: concatenates gene targets, takes min FDR values
-- Sorts by statistical significance (hypergeom FDR, empirical FDR)
-- Counts number of unique targeted genes and connected genes per drug
+- Calculates overlap statistics between mutation types
+- Visualizes Venn diagrams for gene and drug intersections
+- Displays drugs with convergent evidence (appearing across multiple mutation types)
+- Performs aggregation analysis within notebook for viewing purposes only
 
 **Inputs:**
-- `Results/hpv_pos_amp_top_drugBank_drug_candidates.csv`
-- `Results/hpv_pos_del_top_drugBank_drug_candidates.csv`
-- `Results/hpv_pos_som_top_drugBank_drug_candidates.csv`
-- `Results/hpv_neg_amp_top_drugBank_drug_candidates.csv`
-- `Results/hpv_neg_del_top_drugBank_drug_candidates.csv`
-- `Results/hpv_neg_som_top_drugBank_drug_candidates.csv`
+- `Results/CNV results/hpv_pos_amp_top_drugBank_drug_candidates.csv`
+- `Results/CNV results/hpv_pos_del_top_drugBank_drug_candidates.csv`
+- `Results/CNV results/hpv_pos_som_top_drugBank_drug_candidates.csv`
+- `Results/CNV results/hpv_neg_amp_top_drugBank_drug_candidates.csv`
+- `Results/CNV results/hpv_neg_del_top_drugBank_drug_candidates.csv`
+- `Results/CNV results/hpv_neg_som_top_drugBank_drug_candidates.csv`
 
 **Outputs:**
-- Overlap statistics (printed to notebook)
-- Aggregated drug candidate tables (used for downstream analysis)
-- file used to view overlaps and Venn diagrams, not saved as output
+- **None** - This is a viewing/comparison notebook only
+- Overlap statistics displayed in notebook cells
+- Comparison tables displayed for interactive exploration
+- Used to understand convergent evidence before final result creation (File 05)
+
+**Note:** While this file performs aggregation within the notebook for viewing, it does not save these aggregations as output files. The actual aggregation used by downstream files is performed in File 02.50 (for CNV) and File 03.5 (for SOM), which create the "Aggregated" CSV files.
 
 **Key Insights:**
 - Drugs targeting genes mutated through multiple mechanisms have stronger biological rationale
 - Overlap drugs are prioritized as having convergent evidence
+- Helps researchers identify high-confidence candidates before final result creation
 
 **Libraries:** pandas, matplotlib, plotly
 
@@ -1018,11 +1148,9 @@ This is a quality control and refinement notebook that:
    - Includes PMIDs for citation traceability
 
 **Key Data Sources:**
-- CNV results: HPV+/- amplification/deletion drug candidates
-- SOM results: HPV+/- somatic mutation drug candidates
-- Literature validation:
-  - `Validation pipeline/Results/cleaned_extracted_targets_all_pub_after_2000_GPU_2b_gemma.csv`: Drug-gene pairs extracted from PubMed
-  - `Validation pipeline/Results/cleaned_extracted_combined_targets_all_pub_after_2000_GPU_2b_gemma.csv`: Combined targets
+- CNV results: Aggregated HPV+/- drug candidates (amplification + deletion combined)
+- SOM results: Aggregated HPV+/- somatic mutation drug candidates
+- Literature validation: Drug-gene pairs extracted from PubMed using GPU-accelerated NLP
 
 **Aggregation Strategy:**
 - Group by `DRUG` 
@@ -1037,32 +1165,38 @@ This is a quality control and refinement notebook that:
 **Gene Results:**
 - `Results/CNV results/HPV positive CNV top genes.csv`: HPV+ CNV significant genes (from File 02.2)
 - `Results/CNV results/HPV negative CNV top genes.csv`: HPV- CNV significant genes (from File 02.2)
-- `Results/SOM Results/HPV positive top genes.csv`: HPV+ SOM significant genes (from File 03)
-- `Results/SOM Results/HPV negative top genes.csv`: HPV- SOM significant genes (from File 03)
+- `Results/SOM results/HPV positive top genes.csv`: HPV+ SOM significant genes (from File 03)
+- `Results/SOM results/HPV negative top genes.csv`: HPV- SOM significant genes (from File 03)
 
-**Drug Candidates (Aggregated in File 04):**
-- `Results/CNV results/HPV Positive Top Direct Drug Candidates Aggregated.csv`: HPV+ CNV direct drugs (amp+del combined)
-- `Results/CNV results/HPV Positive Top Indirect Drug Candidates Aggregated.csv`: HPV+ CNV indirect drugs (amp+del combined)
-- `Results/CNV results/HPV Negative Top Direct Drug Candidates Aggregated.csv`: HPV- CNV direct drugs (amp+del combined)
-- `Results/CNV results/HPV Negative Top Indirect Drug Candidates Aggregated.csv`: HPV- CNV indirect drugs (amp+del combined)
-- `Results/SOM Results/hpv_positive_som_top_direct_drug_candidates_agg.csv`: HPV+ SOM direct drugs
-- `Results/SOM Results/hpv_positive_som_top_indirect_drug_candidates_agg.csv`: HPV+ SOM indirect drugs
-- `Results/SOM Results/hpv_negative_som_top_direct_drug_candidates_agg.csv`: HPV- SOM direct drugs
-- `Results/SOM Results/hpv_negative_som_top_indirect_drug_candidates_agg.csv`: HPV- SOM indirect drugs
+**Drug Candidates (Aggregated files from Files 02.50 and 03.5):**
+- `Results/CNV results/HPV Positive Top Direct Drug Candidates Aggregated.csv`: HPV+ CNV direct drugs (amp+del combined, created by File 02.50)
+- `Results/CNV results/HPV Positive Top Indirect Drug Candidates Aggregated.csv`: HPV+ CNV indirect drugs (amp+del combined, created by File 02.50)
+- `Results/CNV results/HPV Negative Top Direct Drug Candidates Aggregated.csv`: HPV- CNV direct drugs (amp+del combined, created by File 02.50)
+- `Results/CNV results/HPV Negative Top Indirect Drug Candidates Aggregated.csv`: HPV- CNV indirect drugs (amp+del combined, created by File 02.50)
+- `Results/SOM results/hpv_positive_som_top_direct_drug_candidates_agg.csv`: HPV+ SOM direct drugs (created by File 03.5)
+- `Results/SOM results/hpv_positive_som_top_indirect_drug_candidates_agg.csv`: HPV+ SOM indirect drugs (created by File 03.5)
+- `Results/SOM results/hpv_negative_som_top_direct_drug_candidates_agg.csv`: HPV- SOM direct drugs (created by File 03.5)
+- `Results/SOM results/hpv_negative_som_top_indirect_drug_candidates_agg.csv`: HPV- SOM indirect drugs (created by File 03.5)
 
 **Literature Validation (Optional):**
 - `Validation pipeline/Results/cleaned_extracted_targets_all_pub_after_2000_GPU_2b_gemma.csv`: Drug-gene pairs from PubMed
 - `Validation pipeline/Results/cleaned_extracted_combined_targets_all_pub_after_2000_GPU_2b_gemma.csv`: Combined drug-gene targets
 
-**Note:** File 05 uses the aggregated drug candidate files created in File 04, which have already combined amplification and deletion results from the CNV analysis.
+**Note:** File 05 reads aggregated drug candidate files directly from Files 02.50 (CNV aggregated: amp+del combined) and 03.5 (SOM aggregated). File 04 is used only for comparison/viewing and does not produce output files.
 
 **Outputs:**
-- `Results/HPV positive gene results.csv`: Unified HPV+ significant genes (CNV + SOM)
-- `Results/HPV negative gene results.csv`: Unified HPV- significant genes (CNV + SOM)
-- `Results/HPV Positive direct results.csv`: Aggregated HPV+ direct drug candidates
-- `Results/HPV Negative direct results.csv`: Aggregated HPV- direct drug candidates
-- `Results/HPV Positive indirect results.csv`: Aggregated HPV+ indirect drug candidates (via PPI)
-- `Results/HPV Negative indirect results.csv`: Aggregated HPV- indirect drug candidates (via PPI)
+
+**Intermediate Files (Results/):**
+- `Results/HPV positive gene results.csv`: Intermediate unified HPV+ significant genes (CNV + SOM)
+- `Results/HPV negative gene results.csv`: Intermediate unified HPV- significant genes (CNV + SOM)
+- `Results/HPV Positive direct results.csv`: Intermediate aggregated HPV+ direct drug candidates
+- `Results/HPV Negative direct results.csv`: Intermediate aggregated HPV- direct drug candidates
+- `Results/HPV Positive indirect results.csv`: Intermediate aggregated HPV+ indirect drug candidates (via PPI)
+- `Results/HPV Negative indirect results.csv`: Intermediate aggregated HPV- indirect drug candidates (via PPI)
+
+**Final Validated Files (Results/Final Results/):**
+- `Results/Final Results/HPV Positive validated genes.csv`: Final validated HPV+ genes with literature support
+- `Results/Final Results/HPV Negative validated genes.csv`: Final validated HPV- genes with literature support
 
 **Key Output Columns (Final Results):**
 - `DRUG`: Drug name
@@ -1125,8 +1259,8 @@ This is a quality control and refinement notebook that:
 - `Data/DGIDB/drug_bank.xml`
 
 **Outputs:**
-- `Results/HPV_Positive_Direct_Top50_DrugBank_Verified.csv`: Top 50 HPV+ direct drugs with DrugBank actions
-- `Results/HPV_Negative_Direct_Top50_DrugBank_Verified.csv`: Top 50 HPV- direct drugs with DrugBank actions
+- `Results/Final Results/HPV Positive Validated direct candidates.csv`: Final validated HPV+ direct drugs with DrugBank actions
+- `Results/Final Results/HPV Negative Validated direct candidates.csv`: Final validated HPV- direct drugs with DrugBank actions
 
 **Table Columns:**
 - `DRUG`: Drug name
@@ -1363,9 +1497,9 @@ This is a quality control and refinement notebook that:
 
 **Outputs:**
 
-**Tables:**
-- `Results/HPV_Positive_Top50_PPI_Validated.csv`: Top 50 HPV+ indirect drugs
-- `Results/HPV_Negative_Top50_PPI_Validated.csv`: Top 50 HPV- indirect drugs
+**Tables (Final Results/):**
+- `Results/Final Results/HPV Positive Validated indirect candidates.csv`: Final validated HPV+ indirect drugs
+- `Results/Final Results/HPV Negative Validated indirect candidates.csv`: Final validated HPV- indirect drugs
 
 **Sankey Diagrams (Interactive Plotly HTML):**
 - Combined Sankey: All drugs in unified view (HPV+ and HPV-)
@@ -1436,23 +1570,27 @@ This is a quality control and refinement notebook that:
 
 ## Output Summary
 
-**Final Deliverables:**
+**Final Publication-Ready Outputs (Results/Final Results/):**
 
-1. **Gene Results (Significant Mutations):**
-   - `Results/HPV positive gene results.csv`: HPV+ significant genes (CNV + SOM)
-   - `Results/HPV negative gene results.csv`: HPV- significant genes (CNV + SOM)
+1. **Gene Results (Significant Mutations with Literature Validation):**
+   - `Results/Final Results/HPV Positive validated genes.csv`: Final HPV+ significant genes (CNV + SOM) with literature support
+   - `Results/Final Results/HPV Negative validated genes.csv`: Final HPV- significant genes (CNV + SOM) with literature support
 
 2. **Direct Drug Candidates (Drug → Gene):**
-   - `Results/HPV Positive direct results.csv`: All HPV+ direct candidates
-   - `Results/HPV Negative direct results.csv`: All HPV- direct candidates
-   - `Results/HPV_Positive_Direct_Top50_DrugBank_Verified.csv`: Top 50 HPV+ with DrugBank verification
-   - `Results/HPV_Negative_Direct_Top50_DrugBank_Verified.csv`: Top 50 HPV- with DrugBank verification
+   - `Results/Final Results/HPV Positive Validated direct candidates.csv`: Final HPV+ direct drugs with DrugBank verification
+   - `Results/Final Results/HPV Negative Validated direct candidates.csv`: Final HPV- direct drugs with DrugBank verification
 
 3. **Indirect Drug Candidates (Drug → Target → Risk Gene via PPI):**
-   - `Results/HPV Positive indirect results.csv`: All HPV+ indirect candidates
-   - `Results/HPV Negative indirect results.csv`: All HPV- indirect candidates
-   - `Results/HPV_Positive_Top50_PPI_Validated.csv`: Top 50 HPV+ with PPI validation
-   - `Results/HPV_Negative_Top50_PPI_Validated.csv`: Top 50 HPV- with PPI validation
+   - `Results/Final Results/HPV Positive Validated indirect candidates.csv`: Final HPV+ indirect drugs with PPI validation
+   - `Results/Final Results/HPV Negative Validated indirect candidates.csv`: Final HPV- indirect drugs with PPI validation
+
+**Intermediate Analysis Files (Results/):**
+- `Results/HPV positive gene results.csv`: Intermediate HPV+ genes (used by File 06, 07)
+- `Results/HPV negative gene results.csv`: Intermediate HPV- genes (used by File 06, 07)
+- `Results/HPV Positive direct results.csv`: Intermediate HPV+ direct candidates (all candidates before filtering)
+- `Results/HPV Negative direct results.csv`: Intermediate HPV- direct candidates (all candidates before filtering)
+- `Results/HPV Positive indirect results.csv`: Intermediate HPV+ indirect candidates (all candidates before filtering)
+- `Results/HPV Negative indirect results.csv`: Intermediate HPV- indirect candidates (all candidates before filtering)
 
 **Statistical Thresholds:**
 - Genetic significance: q_value < 0.05 AND empirical_q_value < 0.05
@@ -1583,11 +1721,13 @@ bash 00\ extract_pmids.bash
 
 5. **Access Results:**
 ```bash
-# Final output files located in:
-Results/HPV_Positive_Direct_Top50_DrugBank_Verified.csv
-Results/HPV_Negative_Direct_Top50_DrugBank_Verified.csv
-Results/HPV_Positive_Top50_PPI_Validated.csv
-Results/HPV_Negative_Top50_PPI_Validated.csv
+# Final publication-ready output files located in:
+Results/Final\ Results/HPV\ Positive\ validated\ genes.csv
+Results/Final\ Results/HPV\ Negative\ validated\ genes.csv
+Results/Final\ Results/HPV\ Positive\ Validated\ direct\ candidates.csv
+Results/Final\ Results/HPV\ Negative\ Validated\ direct\ candidates.csv
+Results/Final\ Results/HPV\ Positive\ Validated\ indirect\ candidates.csv
+Results/Final\ Results/HPV\ Negative\ Validated\ indirect\ candidates.csv
 ```
 
 ### Expected Runtime

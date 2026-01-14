@@ -1,5 +1,78 @@
 # Genomic Landscape-Based Drug Repurposing for Head and Neck Cancer (TCGA-HNSC Nulton Cohort)
 
+## Introduction to the GARD Pipeline
+
+The **Genomic Alteration-based Repurposing for Drugs (GARD)** pipeline is a comprehensive computational framework designed to identify drug repurposing opportunities by analyzing the genomic landscape of cancer cohorts. Specifically applied to head and neck squamous cell carcinoma (HNSC) using The Cancer Genome Atlas (TCGA) data, GARD systematically discovers both direct and indirect therapeutic candidates that target genomically altered pathways.
+
+### What GARD Does
+
+GARD performs multi-dimensional genomic analysis to identify statistically significant genetic alterations and their druggable targets:
+
+1. **Stratifies patients by clinically relevant biomarkers** (HPV status) to enable personalized therapeutic strategies
+2. **Identifies significantly altered genes** through rigorous statistical testing of both copy number variations (CNV) and somatic mutations (SOM)
+3. **Maps druggable targets** using two complementary approaches:
+   - **Direct targeting**: Drugs that directly act on mutated genes
+   - **Indirect targeting**: Drugs that act on proteins functionally connected to mutated genes through protein-protein interaction (PPI) networks
+4. **Validates findings through literature mining** using GPU-accelerated NLP to confirm drug-gene relationships in published research
+5. **Prioritizes candidates** based on multiple statistical metrics including binomial testing, hypergeometric enrichment, empirical permutation testing, and false discovery rate (FDR) correction
+
+### How GARD Works
+
+The pipeline employs a multi-stage analytical workflow:
+
+#### Stage 1: Data Integration and Cohort Stratification
+- Integrates TCGA genomic data (CNV and somatic mutations) with clinical annotations
+- Stratifies the HNSC cohort into HPV-positive (n=72) and HPV-negative (n=448) subgroups based on validated HPV status from Nulton et al.
+- Consolidates drug-gene interaction data from DrugBank (~21,714 interactions)
+- Constructs high-confidence protein-protein interaction networks from STRING database (confidence ≥700)
+
+#### Stage 2: Parallel Genomic Analysis
+Two parallel analytical branches process CNV and SOM data independently:
+
+**CNV Analysis Branch:**
+- Calculates GISTIC scores to quantify amplification and deletion events
+- Performs binomial significance testing for each gene
+- Validates significance through 1,000 empirical permutations
+- Applies Benjamini-Hochberg FDR correction
+
+**SOM Analysis Branch:**
+- Quantifies mutation frequency across the cohort
+- Performs binomial significance testing accounting for gene length and mutation rate
+- Validates significance through 10,000 empirical permutations
+- Applies frequency cutoffs and FDR correction
+
+#### Stage 3: Drug Target Discovery
+- **Direct candidates**: Matches significantly altered genes directly to DrugBank interactions
+- **Indirect candidates**: Expands target space through PPI networks to identify drugs acting on functionally connected proteins
+- Performs hypergeometric enrichment testing to assess statistical over-representation of drug targets
+- Calculates empirical FDR through permutation testing (10,000 iterations)
+
+#### Stage 4: Literature Validation
+- Extracts PubMed IDs (PMIDs) for drug-gene pairs from the biomedical literature
+- Uses GPU-accelerated Gemma 2B language model to analyze full-text articles
+- Confirms or refutes drug-gene interactions based on published evidence
+- Filters candidates to retain only literature-validated relationships
+
+#### Stage 5: Results Integration and Visualization
+- Consolidates findings from CNV and SOM analyses
+- Creates comprehensive tables with mutation types, statistical metrics, and DrugBank annotations
+- Generates interactive Sankey diagrams visualizing drug-gene-target relationships
+- Produces network visualizations of validated drug repurposing candidates
+
+### Overall Goal
+
+The GARD pipeline aims to accelerate the drug repurposing process for cancer treatment by:
+
+- **Leveraging existing genomic data** from large-scale projects like TCGA to identify patient subgroups with distinct genomic profiles
+- **Discovering precision medicine opportunities** through biomarker-stratified analysis (HPV+ vs HPV-)
+- **Expanding the druggable target space** beyond direct gene products to include functionally connected pathways
+- **Providing evidence-based prioritization** through multi-level statistical validation and literature confirmation
+- **Generating actionable candidate lists** for experimental validation and potential clinical translation
+
+By integrating genomic alterations, protein networks, drug databases, and published literature, GARD provides a systematic approach to identify repurposing opportunities that may have been overlooked by traditional single-gene or single-drug analyses. The stratification by HPV status is particularly relevant for HNSC, as HPV-positive and HPV-negative tumors have distinct molecular profiles, treatment responses, and clinical outcomes, making personalized therapeutic strategies essential.
+
+---
+
 ## Table of Contents
 
 1. [Overview](#overview)

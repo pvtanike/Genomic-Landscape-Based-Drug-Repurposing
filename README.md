@@ -1,4 +1,4 @@
-# Genomic Landscape-Based Drug Repurposing for Head and Neck Cancer (TCGA-HNSC Nulton Cohort)
+# GARD: Genomic Data based Drug Repurposing in Head and Neck Cancer with Large Language Model Validation
 
 ## Introduction to the GARD Pipeline
 

@@ -47,11 +47,12 @@ Two parallel analytical branches process CNV and SOM data independently:
 - Performs hypergeometric enrichment testing to assess statistical over-representation of drug targets
 - Calculates empirical FDR through permutation testing (10,000 iterations)
 
-#### Stage 4: Literature Validation
-- Extracts PubMed IDs (PMIDs) for drug-gene pairs from the biomedical literature
-- Uses GPU-accelerated Gemma 2B language model to analyze full-text articles
-- Confirms or refutes drug-gene interactions based on published evidence
-- Filters candidates to retain only literature-validated relationships
+#### Stage 4: Literature Validation (Optional)
+- Extracts PubMed IDs (PMIDs) for disease-gene relationships from the biomedical literature
+- Uses GPU-accelerated Gemma 2B language model to analyze full-text articles and identify genes implicated in head and neck cancer
+- Provides independent validation that genomically identified genes are also recognized in published research
+- **Applied after statistical drug-gene filtering:** Drugs passing statistical significance are retained only if they target literature-validated genes (direct) or connect to literature-validated risk genes via PPI (indirect)
+- **Literature filtering occurs during File 05 (Final result creation)** where drugs are filtered based on literature-validated gene targets
 
 #### Stage 5: Results Integration and Visualization
 - Consolidates findings from CNV and SOM analyses
@@ -438,9 +439,10 @@ This pipeline employs a rigorous dual-validation statistical framework combining
 - **Quality Control:** Cross-reference with DrugBank and HGNC
 
 **Integration:**
-- **Primary Evidence:** Genomic data + statistical testing
-- **Secondary Evidence:** Literature validation (confirmatory)
-- **Absence of Literature:** Does not invalidate genomic findings (may indicate novel discoveries)
+- **Primary Evidence:** Genomic data + statistical testing (identifies significant genes and enriched drugs)
+- **Secondary Filtering:** Literature validation applied on statistical significant drugs found from drug-gene significance testing
+- **Drug Selection:** Statistically significant drugs are retained only if they target literature-validated genes
+- **Note:** Absence of literature support filters out the drug candidate (conservative approach prioritizing translational relevance)
 
 ### 5. Statistical Significance Criteria
 
@@ -1214,11 +1216,14 @@ This is a quality control and refinement notebook that:
    - Combines PPI-validated connections
    - Integrates literature validation metrics
 
-4. **Literature Validation:**
-   - Loads literature-extracted drug-gene interactions from GPU-accelerated NLP pipeline
-   - Matches drug candidates to PubMed-validated targets
-   - Adds literature-validated gene lists and article counts
-   - Includes PMIDs for citation traceability
+4. **Literature Validation and Drug Filtering:**
+   - Loads literature-extracted gene-disease relationships from GPU-accelerated NLP pipeline
+   - Identifies which genomically significant genes have literature support in HNC research
+   - **Drug filtering strategy:** After statistical enrichment testing, drugs are retained only if they:
+     - **Direct candidates:** Target genes that appear in the literature validation results
+     - **Indirect candidates:** Connect via PPI to risk genes that appear in the literature validation results
+   - Adds literature-validated gene lists, article counts, and PMIDs for traceability
+   - **This secondary filtering occurs after statistical drug-gene identification** - only drugs targeting literature-validated genes are carried forward to Files 06-07
 
 **Key Data Sources:**
 - CNV results: Aggregated HPV+/- drug candidates (amplification + deletion combined)
@@ -1930,7 +1935,7 @@ The Validation Pipeline is a supplementary workflow that provides literature-bas
 
 **Approach:** GPU-accelerated NLP using the Gemma 2B language model to parse PubMed articles and identify key disease targets (genes) mentioned in head and neck cancer literature.
 
-**Integration:** Results provide evidence that genes identified through statistical analysis (Files 02-03) are also recognized in the scientific literature as relevant to head and neck cancer.
+**Integration:** After statistical enrichment identifies significant drug-gene connections, drugs are filtered to retain only those targeting literature-validated genes. This ensures drugs target genes with both genomic significance and published disease relevance.
 
 ### Pipeline Components
 
@@ -2198,21 +2203,25 @@ jupyter notebook "03 data viewing.ipynb"
 ```
 
 **Purpose of Validation:**
-This pipeline provides **independent confirmation** that genes identified through genomic analysis are also recognized in published HNC research, increasing confidence in their biological relevance.
+This pipeline extracts genes mentioned in HNC literature to create a reference set of literature-validated disease targets. Drug candidates identified through statistical enrichment (Files 02.50, 03.5) are then filtered to retain only those targeting these literature-validated genes.
 
 **What Gets Validated:**
-- Genes from File 02 (CNV analysis): Are amplified/deleted genes mentioned in HNC literature?
-- Genes from File 03 (SOM analysis): Are mutated genes mentioned in HNC literature?
+- Genes from File 02 (CNV analysis): Amplified/deleted genes mentioned in HNC literature
+- Genes from File 03 (SOM analysis): Mutated genes mentioned in HNC literature
+- **Result:** A list of literature-validated genes used for drug filtering in File 05
 
-**Interpretation:**
-- **High confidence genes**: Significant in genomics AND mentioned in literature
+**Drug Filtering Logic:**
+- **Statistical identification first:** Genomic analysis identifies significant genes → Drug enrichment testing identifies significant drug-gene connections
+- **Literature filtering second:** Only drugs targeting literature-validated genes are retained in final outputs
+- **Direct drugs:** Must target genes that appear in literature
+- **Indirect drugs:** Must connect via PPI to risk genes that appear in literature
 
 **When to Run Validation Pipeline:**
-- **After Files 02-03:** To validate gene discoveries before drug candidate identification
-- **Before integrating with main pipeline results:** To enhance drug-gene relationship confidence
-- **Integrated in file 05 Final result creation.ipynb:** To annotate drugs with literature-validated targets
+- **Before File 05:** To create literature-validated gene list for drug filtering
+- **Integration point:** File 05 loads literature results and filters drugs based on gene validation
+- **Effect:** Final outputs (Files 06-07) contain only drugs targeting literature-supported genes
 
-**Note:** This validation pipeline does NOT extract or validate drug-gene interactions. Drug-gene relationships come from DrugBank database in the main pipeline.
+**Note:** This validation pipeline extracts gene-disease relationships (not drug-gene interactions). Drug-gene relationships come from DrugBank. Literature validation determines which genes are "validated," and drugs are kept if they target those validated genes.
 
 **Computational Cost:**
 - **Without GPU:** Not feasible (NLP extraction too slow with CPU)
@@ -2229,17 +2238,23 @@ This pipeline provides **independent confirmation** that genes identified throug
 
 ### Validation Pipeline Output Integration
 
-**How Literature Validation Enhances Results:**
+**How Literature Validation Filters Drug Candidates:**
 
-1. **Confidence improvements:**
-   - Drugs with both DrugBank annotation AND literature support = highest confidence
+**Process Flow:**
+1. **Statistical Analysis (Files 02-03):** Identifies genomically significant genes
+2. **Drug Enrichment (Files 02.50, 03.5):** Identifies drugs significantly enriched for targeting those genes
+3. **Literature Validation:** Extracts genes mentioned in HNC literature from PubMed
+4. **Drug Filtering (File 05):** Retains only drugs that target literature-validated genes
 
-2. **Evidence Traceability:**
-   - PMIDs provide direct links to supporting publications
-   - Enables manual verification of drug-gene relationships
+**Filtering Criteria:**
+- **Direct drugs:** Must target ≥1 gene that appears in literature validation results
+- **Indirect drugs:** Must connect via PPI to ≥1 risk gene that appears in literature validation results
+- **Effect:** Drugs targeting genomically significant but literature-absent genes are filtered out
 
-3. **Novel Discovery Prioritization:**
-   - Prioritizes repurposing candidates with translational potential
+**Benefits:**
+1. **Increased Confidence:** Final candidates have both statistical significance AND published disease relevance
+2. **Evidence Traceability:** PMIDs provide direct links to supporting publications for targeted genes
+3. **Translational Focus:** Prioritizes drugs targeting well-established disease genes over novel/uncertain targets
 
 **Example Enhanced Result:**
 ```
@@ -2247,12 +2262,41 @@ Drug: Afatinib
 DrugBank Targets: EGFR, ERBB2, ERBB4
 Literature-Validated Targets: EGFR, ERBB2 (87 articles)
 Risk Genes Connected via PPI: PIK3CA, AKT1, MTOR (23 articles)
-PMIDs: 25316818;26177326;27542767;... (PMIDs for EGFR targeting)
-Interpretation: Strong evidence (genomic + literature + PPI) for repurposing in HPV+ HNSCC
+PMIDs: 25316818;26177326;27542767;... (PMIDs for EGFR in HNC literature)
+Status: RETAINED (targets literature-validated genes)
 ```
 ---
 
 ## Data Availability and Reproducibility
+
+### Reproducibility and Result Variability
+
+**Random Seeds:**
+All stochastic procedures in the pipeline use fixed random seeds (typically set to 42) to ensure reproducibility. This includes:
+- Permutation testing in CNV analysis (File 02)
+- Permutation testing in SOM analysis (File 03)  
+- Empirical permutation testing for drug enrichment (Files 02.50 and 03.5)
+
+**Important Disclaimer on Result Variability:**
+While random seeds are set throughout the pipeline, **minor variations in results may still occur between runs** due to:
+- **Software library versions**: Different versions of NumPy, SciPy, or statistical libraries may implement algorithms differently
+- **Hardware differences**: Floating-point arithmetic can vary slightly across different CPUs/architectures
+- **GPU variability**: The validation pipeline's NLP extraction (Gemma 2B model) may produce slightly different results even with seeds due to non-deterministic GPU operations
+- **Operating system differences**: Thread scheduling and memory allocation patterns can differ between systems
+- **Parallel processing**: When operations are parallelized, the order of execution may vary slightly
+
+**Expected Variability:**
+- Statistical significance calls (FDR < 0.05) should remain consistent for genes/drugs well above or below the threshold
+- Genes/drugs with FDR values very close to 0.05 may occasionally flip between significant/non-significant across runs
+- Exact p-values and FDR values may vary slightly in the 3rd-4th decimal place
+- Literature extraction results may vary more substantially due to GPU model non-determinism
+
+**Best Practices for Reproducibility:**
+- Document software versions (use `requirements.txt`)
+- Record hardware specifications and operating system
+- Save intermediate results to enable exact reproduction of downstream analyses
+- For critical findings near significance thresholds, consider running multiple iterations to assess stability
+- When comparing results across runs, focus on biological conclusions rather than exact numerical values
 
 ### Data Availability
 

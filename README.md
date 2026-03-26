@@ -89,7 +89,7 @@ By integrating genomic alterations, protein networks, drug databases, and publis
 6. [File-by-File Breakdown](#file-by-file-breakdown)
    - [00 Data viewing.ipynb](#00-data-viewingipynb)
    - [01 determine HPV status.ipynb](#01-determine-hpv-statusipynb)
-   - [02 CNV identify mutation gene.ipynb](#02-cnv-identify-mutation-geneipynb)
+   - [02 CNV identify mutation gene.ipynb](#02-cnv-identify-mutation-geneipynb) *(updated: improved CNV event handling, see below)*
    - [02.2 CNV key mutation identification.ipynb](#022-cnv-key-mutation-identificationipynb)
    - [02.50 CNV drug repurposing candidates.ipynb](#0250-cnv-drug-repurposing-candidates-copyipynb)
    - [03 SOM identify key mutation gene.ipynb](#03-som-identify-key-mutation-geneipynb)
@@ -112,6 +112,16 @@ By integrating genomic alterations, protein networks, drug databases, and publis
 12. [Repository Information](#repository-information)
 13. [Contact and Support](#contact-and-support)
 14. [Key References](#key-references)
+
+---
+
+
+## Recent Update (March 2026)
+
+**File 02 CNV identify mutation gene.ipynb was updated:**
+
+- The default value for `cnv.append` in both deletion and amplification event handling was changed to prevent errors when missing or invalid CNV values are encountered. Now, a default value of 2 (representing normal diploid state) is appended for such cases, ensuring robust downstream calculations and error-free execution.
+- This change only marginally affected some p-values in the statistical output, but **did not alter the final set of significant genes or drug repurposing candidates**. All downstream results and conclusions remain unchanged.
 
 ---
 

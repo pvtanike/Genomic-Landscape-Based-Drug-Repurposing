@@ -118,10 +118,15 @@ By integrating genomic alterations, protein networks, drug databases, and publis
 
 ## Recent Update (March 2026)
 
+
 **File 02 CNV identify mutation gene.ipynb was updated:**
 
 - The default value for `cnv.append` in both deletion and amplification event handling was changed to prevent errors when missing or invalid CNV values are encountered. Now, a default value of 2 (representing normal diploid state) is appended for such cases, ensuring robust downstream calculations and error-free execution.
 - This change only marginally affected some p-values in the statistical output, but **did not alter the final set of significant genes or drug repurposing candidates**. All downstream results and conclusions remain unchanged.
+
+**File 03 SOM identify key mutation gene.ipynb was updated:**
+
+- In the somatic mutation analysis, normalization by gene length now uses a fallback value of 7500 (the average protein-coding gene length) for any gene missing from the reference. This improves robustness and prevents division by very small numbers or missing data. All other logic and statistical methodology remain unchanged.
 
 ---
 

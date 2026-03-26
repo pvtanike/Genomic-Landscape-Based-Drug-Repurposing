@@ -1105,7 +1105,7 @@ This is a quality control and refinement notebook that:
 **Libraries:** pandas, scipy.stats (binomtest), statsmodels.stats.multitest, numpy, matplotlib, plotly
 
 **Note on Methodology Update (2026):**
-Code updated post-publication to include pseudocount adjustment in empirical p-value calculations (formula: (1 + successes) / (M + 1) instead of successes / M). This change enhances statistical rigor by preventing zero p-values and following standard permutation test practices. Finalized genes remain unchanged, and empirical q-values shifted only marginally with no impact on final biological conclusions or drug candidates. All results remain robust across both implementations.
+Code updated to align with published methodology. The paper's methods section already described pseudocount adjustment in empirical p-value calculations (formula: (1 + successes) / (M + 1)), but the code originally implemented the simpler formula (successes / M). This update corrects the code to match the published methods. Finalized genes remain unchanged, and empirical q-values shifted only marginally with no impact on final biological conclusions or drug candidates. All results remain consistent with published findings.
 
 ---
 
@@ -2418,6 +2418,15 @@ For questions about this pipeline, please contact:
 
 ## Version History
 
+**Version 1.1 (March 2026):**
+- Updated File 03 (SOM identify key mutation gene.ipynb) to align code implementation with published methodology
+- The paper's methods section already described pseudocount adjustment formula: `(1 + successes) / (M + 1)`
+- Code originally implemented simpler formula: `successes / M`
+- This update corrects the code to match the published methods, ensuring full consistency between paper and implementation
+- No change to finalized gene selections or biological conclusions
+- Empirical q-values shifted marginally without impact on final results
+- All results remain robust and consistent with published findings
+
 **Version 1.0 (December 2025):**
 - Initial public release
 - Complete main pipeline (Files 00-07)
@@ -2501,11 +2510,11 @@ A: Yes! See "Contributing" section under "Repository Information". Open issues f
 
 ---
 
-**Last Updated:** December 12, 2025
+**Last Updated:** March 25, 2026
 
-**README Version:** 1.0
+**README Version:** 1.1
 
-**Pipeline Version:** 1.0
+**Pipeline Version:** 1.1
 
 ---
 

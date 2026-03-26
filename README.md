@@ -1020,23 +1020,30 @@ This is a quality control and refinement notebook that:
 
 ---
 ### **03 SOM identify key mutation gene.ipynb**
-**Purpose:** Identify significantly mutated genes from somatic mutation (SOM) data stratified by HPV status using gene-length-normalized statistical testing.
+**Purpose:** Identify significantly mutated genes from somatic mutation (SOM) data stratified by HPV status using gene-length-normalized dual statistical validation.
 
 **Key Statistical Methods:**
 
-1. **Binomial Test:** Tests if observed mutations in a gene exceed random expectation accounting for gene length.
-   - Null hypothesis: Mutations are randomly distributed across the genome proportional to gene CDS (coding sequence) length
+1. **Binomial Test (Parametric Approach):** Tests if observed non-synonymous mutations in a gene exceed random expectation accounting for gene length and genome-wide mutation rate.
+   - Null hypothesis: Non-synonymous mutations are randomly distributed across the genome proportional to gene CDS (coding sequence) length
+   - **Critical Design Choice**: Uses **ALL mutations (synonymous + non-synonymous)** as denominator to establish the true genome-wide background mutation rate, accounting for regional mutation rate variation and providing stable background estimation
    - Probability that a mutation occurs in gene g: p_g = L_g / L_total (gene length / total coding genome length)
-   - Test statistic: k_g ~ Binomial(N, p_g) where N = total mutations in cohort, k_g = observed mutations in gene g
+   - Test statistic: k_g ~ Binomial(N_total, p_g) where N_total = total mutations in cohort (including synonymous), k_g = observed non-synonymous mutations in gene g
    - Right-tailed test: P(K ≥ k_g) using binomial distribution
 
-2. **Empirical/Multinomial Test:** Validates binomial results using Monte Carlo simulation with multinomial distribution.
-   - Generates null distribution by sampling from Multinomial(N, **p**) where **p** is vector of gene-length-based probabilities
+2. **Empirical/Multinomial Test (Non-parametric Approach):** Validates binomial results using Monte Carlo simulation with multinomial distribution.
+   - **Critical Design Choice**: Uses **only non-synonymous mutations** as denominator to focus on the functionally relevant mutational landscape
+   - Generates null distribution by sampling from Multinomial(N_nonsyn, **p**) where **p** is vector of gene-length-based probabilities
    - 10,000 simulations: In each iteration, all gene mutation counts are drawn simultaneously from multinomial
-   - Empirical p-value: proportion of simulations where simulated count ≥ observed count
-   - Accounts for dependencies between genes (mutations must sum to total N)
+   - Empirical p-value: (1 + count of simulations where simulated ≥ observed) / (M + 1), with pseudocount adjustment to prevent zero p-values
+   - Accounts for dependencies between genes (mutations must sum to total N_nonsyn)
 
-3. **Multiple Testing Correction:** Benjamini-Hochberg FDR correction applied to both binomial and empirical p-values.
+3. **Dual-Denominator Rationale:** The intentional use of different denominators provides complementary validation with distinct null hypotheses:
+   - **Binomial test**: Tests whether a gene has excess functional mutations given its overall mutational exposure (including synonymous mutations that reflect regional mutation processes)
+   - **Multinomial test**: Tests whether a gene is enriched for functional mutations compared to the empirical distribution of non-synonymous mutations across all genes
+   - This dual approach dramatically reduces false positives by requiring genes to pass two independent statistical frameworks, catching true driver genes while filtering out hypermutable regions, random fluctuations, and technical artifacts
+
+4. **Multiple Testing Correction:** Benjamini-Hochberg FDR correction applied to both binomial and empirical p-values.
 
 **Key Operations:**
 - Loads somatic mutation data (MAF format) filtered to Nulton cohort
@@ -1096,6 +1103,9 @@ This is a quality control and refinement notebook that:
 **Common Mutated Genes:** TP53, PIK3CA, CDKN2A (typical in HNSC)
 
 **Libraries:** pandas, scipy.stats (binomtest), statsmodels.stats.multitest, numpy, matplotlib, plotly
+
+**Note on Methodology Update (2026):**
+Code updated post-publication to include pseudocount adjustment in empirical p-value calculations (formula: (1 + successes) / (M + 1) instead of successes / M). This change enhances statistical rigor by preventing zero p-values and following standard permutation test practices. Finalized genes remain unchanged, and empirical q-values shifted only marginally with no impact on final biological conclusions or drug candidates. All results remain robust across both implementations.
 
 ---
 

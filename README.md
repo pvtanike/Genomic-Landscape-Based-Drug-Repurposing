@@ -116,7 +116,7 @@ By integrating genomic alterations, protein networks, drug databases, and publis
 ---
 
 
-## Recent Update (March 2026)
+## Recent Update (April 2026)
 
 **File 02 CNV identify mutation gene.ipynb was updated:** 
 The default value for cnv.append in both deletion and amplification event handling was revised to prevent errors when encountering missing or invalid CNV values. A value of 2 (representing the normal diploid state) is now appended in such cases, ensuring stable downstream calculations and consistent execution across samples.

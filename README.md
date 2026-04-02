@@ -118,19 +118,21 @@ By integrating genomic alterations, protein networks, drug databases, and publis
 
 ## Recent Update (March 2026)
 
-
-**File 02 CNV identify mutation gene.ipynb was updated:**
-
-- The default value for `cnv.append` in both deletion and amplification event handling was changed to prevent errors when missing or invalid CNV values are encountered. Now, a default value of 2 (representing normal diploid state) is appended for such cases, ensuring robust downstream calculations and error-free execution.
-- This change only marginally affected some p-values in the statistical output, but **did not alter the final set of significant genes or drug repurposing candidates**. All downstream results and conclusions remain unchanged.
-
+**File 02 CNV identify mutation gene.ipynb was updated:** 
+The default value for cnv.append in both deletion and amplification event handling was revised to prevent errors when encountering missing or invalid CNV values. A value of 2 (representing the normal diploid state) is now appended in such cases, ensuring stable downstream calculations and consistent execution across samples.
+This correction led to minor numerical adjustments in a small subset of gene-level statistics, resulting in slight shifts in intermediate p-values and marginal changes in gene counts at the significance boundary.
+Importantly, these changes did not meaningfully impact the final interpretation, as the set of prioritized genes and downstream drug repurposing candidates remained stable, with only negligible differences in borderline rankings.
 
 **File 03 SOM identify key mutation gene.ipynb was updated:**
+In the somatic mutation analysis, normalization by gene length now uses a fallback value of 2021 (the approximate average protein-coding gene length) for genes missing from the reference annotation. This prevents instability from missing or extremely small denominators and improves robustness.
+The empirical p-value calculation was updated to use a standard correction:
+(count of simulations ≥ observed + 1) / (number of simulations + 1).
+This avoids zero-valued p-values and aligns with established best practices for permutation-based inference.
+The parse_gtf function was corrected to ensure CDS gene lengths are computed without double-counting overlapping exons. Previously, redundant exon aggregation could slightly inflate gene lengths for certain transcripts. The revised implementation ensures each genomic interval is counted once per gene, improving biological accuracy and consistency with GENCODE annotation standards.
 
-- In the somatic mutation analysis, normalization by gene length now uses a fallback value of 7500 (the average protein-coding gene length) for any gene missing from the reference. This improves robustness and prevents division by very small numbers or missing data.
-- The empirical p-value calculation for the somatic mutation (SOM) analysis now uses a +1 in both the numerator and denominator: (count of simulations ≥ observed + 1) / (number of simulations + 1). This prevents empirical p-values of exactly zero and is a standard best practice for permutation-based significance testing.
+Collectively, these updates produced only marginal shifts in gene-level statistics, primarily affecting genes near significance cutoffs. This led to small changes in total gene counts and corresponding drug counts, largely limited to background drug candidates. Importantly, there were no substantial changes to the final drug candidates or overall biological conclusions. Core findings, including the top-ranked and highlighted drug candidates, remained unchanged. The key genes and pathways driving the main results were consistent, demonstrating the robustness of the analysis to these technical corrections.
 
-**All of these changes led to only marginal changes in p-values, but did not alter the final set of significant genes or drug repurposing candidates. All downstream results and conclusions remain unchanged.**
+Following these corrections distributions of the scores and frequencies slightly shifted. Significance thresholds were then re-evaluated using the same approach as before, based on the empirical distribution and maintained consistency with prior cutoffs. The updated thresholds were chosen to best reflect the structure of the revised distributions and at regions similar to before, this allowed for maintaining continuity with the original analysis framework. This led to no to limited changes in the final set of significant genes and drug candidates, with only minor adjustments in borderline cases. The core findings and top candidates remained stable, demonstrating that the overall conclusions of the study are robust to these technical updates. The results and conclusion from the paper remain unchanged, with some small marginal shifts in gene and drug counts primarily affecting background candidates. The top candidates and key biological insights are consistent with the original analysis, confirming the stability of the findings despite these technical corrections. These adjustments therefore represent a consistent reapplication of the original thresholding strategy to slightly updated data. The strong agreement between results before and after these updates, aside from minor differences in background genes and drugs, demonstrates the stability and robustness of the overall pipeline.
 
 ---
 
@@ -2302,6 +2304,14 @@ Status: RETAINED (targets literature-validated genes)
 ## Data Availability and Reproducibility
 
 ### Reproducibility and Result Variability
+
+
+**Important Note on Pipeline Variability and Purpose:**
+
+Any run through the code or use of the pipeline may lead to small variations in the final resulting genes and drugs. Most strong, top candidate genes and drugs should remain robust to these small variations, and tend to persist across runs. Users should be aware that the exact results can vary slightly due to the stochastic and data-driven nature of the pipeline. This variability can arise from differences in software library versions, hardware, GPU operations, operating systems, and parallel processing, as well as updates to external databases and literature sources.
+
+Despite these sources of minor variability, the main point of the paper and the pipeline stands: to identify drug repurposing candidates through a genomics-based, validated computational workflow. The pipeline is designed to robustly highlight strong candidates, and the biological conclusions regarding repurposing opportunities remain consistent even if some specific gene or drug calls change between runs.
+
 
 **Random Seeds:**
 All stochastic procedures in the pipeline use fixed random seeds (typically set to 42) to ensure reproducibility. This includes:

@@ -94,6 +94,7 @@ By integrating genomic alterations, protein networks, drug databases, and publis
    - [02.50 CNV drug repurposing candidates.ipynb](#0250-cnv-drug-repurposing-candidates-copyipynb)
    - [03 SOM identify key mutation gene.ipynb](#03-som-identify-key-mutation-geneipynb)
    - [03.5 SOM drug repurpose.ipynb](#035-som-drug-repurposeipynb)
+   - [03.75 result viewing.ipynb](#0375-result-viewingipynb)
    - [04 SOM and CNV results comparison.ipynb](#04-som-and-cnv-results-comparisonipynb)
    - [05 Final result creation.ipynb](#05-final-result-creationipynb)
    - [06 Graph direct results.ipynb](#06-graph-direct-resultsipynb)
@@ -120,18 +121,23 @@ By integrating genomic alterations, protein networks, drug databases, and publis
 
 **File 02 CNV identify mutation gene.ipynb was updated:** 
 The default value for cnv.append in both deletion and amplification event handling was revised to prevent errors when encountering missing or invalid CNV values. A value of 2 (representing the normal diploid state) is now appended in such cases, ensuring stable downstream calculations and consistent execution across samples.
-This correction led to minor numerical adjustments in a small subset of gene-level statistics, resulting in slight shifts in intermediate p-values and marginal changes in gene counts at the significance boundary. This was corrected by ensuring that only unique CNV events are counted per gene per sample, which slightly reduced the number of significant CNV genes identified in the HPV-negative cohort. However, this did not substantially alter the overall conclusions or key findings, as the core set of significant genes and drug candidates remained consistent with the original analysis. This required an alteration of threhsolds used as the distribtions of the scores and frequencies slightly shifted. Significance thresholds were then re-evaluated using the same approach as before, based on the empirical distribution and maintained consistency with prior cutoffs. The updated thresholds were chosen to best reflect the structure of the revised distributions and at regions similar to before. This led to no to limited changes in the final set of significant genes and drug candidates, with only minor adjustments in borderline cases. The core findings and top candidates remained stable, demonstrating that the overall conclusions of the study are robust to these technical updates. The results and conclusion from the paper remain unchanged, with some small marginal shifts in gene and drug counts primarily affecting background candidates. The top candidates and key biological insights are consistent with the original analysis, confirming the stability of the findings despite these technical corrections. These adjustments therefore represent a consistent reapplication of the original thresholding strategy to slightly updated data. The strong agreement between results before and after these updates, aside from minor differences in background genes and drugs, demonstrates the stability and robustness of the overall pipeline. 
+This correction led to minor numerical adjustments in a small subset of gene-level statistics, resulting in slight shifts in intermediate p-values and marginal changes in gene counts at the significance boundary. Additionally, the file counting in HPV negative files was limited to unique files to avoid double counting, which altered distributions of gistic scores and frequencies. This required re-evaluation of cut offs from the distributions. They were kept at similar regions as before, but adjusted to best fit the new distributions. This allowed for maintaining continuity with the original analysis framework while ensuring that thresholds accurately reflected the revised data structure. This led to a slight difference in the final set of significant genes and drug candidates, primarily affecting borderline cases near the significance cutoffs. Some background drug candidates were added or removed based on these shifts, but core findings and top candidates remained consistent with the original analysis. The overall conclusions of the study are robust to this technical correction, which primarily improved data handling and stability without altering the biological insights derived from the CNV analysis.
 
 **File 03 SOM identify key mutation gene.ipynb was updated:**
 In the somatic mutation analysis, normalization by gene length now uses a fallback value of 2021 (the approximate average protein-coding gene length) for genes missing from the reference annotation. This prevents instability from missing or extremely small denominators and improves robustness.
 The empirical p-value calculation was updated to use a standard correction:
 (count of simulations ≥ observed + 1) / (number of simulations + 1).
 This avoids zero-valued p-values and aligns with established best practices for permutation-based inference.
-The parse_gtf function was corrected to ensure CDS gene lengths are computed without double-counting overlapping exons. Previously, redundant exon aggregation could slightly inflate gene lengths for certain transcripts. The revised implementation ensures each genomic interval is counted once per gene, improving biological accuracy and consistency with GENCODE annotation standards.
+
+The parse_gtf function was corrected to ensure CDS gene lengths are computed without double-counting overlapping exons. Previously, redundant exon aggregation could slightly inflate gene lengths for certain transcripts. The revised implementation ensures each genomic interval is counted once per gene, improving biological accuracy and consistency with GENCODE annotation standards. Additionally, in the HPV negative implementation cases were limited to only unique cases to avoid double counting, which altered the mutation frequency distributions and required re-evaluation of frequency cutoffs slightly. 
+
+The new cutoffs were set at similar regions as before, but adjusted to best fit the revised distributions. This led to minor shifts in the final set of significant genes and drug candidates, primarily affecting borderline cases near the significance cutoffs. Some background drug candidates were added or removed based on these shifts, but core findings and top candidates remained consistent with the original analysis. The overall conclusions of the study are robust to these technical corrections, which primarily improved data handling and stability without altering the biological insights derived from the somatic mutation analysis.
 
 Collectively, these updates produced only marginal shifts in gene-level statistics, primarily affecting genes near significance cutoffs. This led to small changes in total gene counts and corresponding drug counts, largely limited to background drug candidates. Importantly, there were no substantial changes to the final drug candidates or overall biological conclusions. Core findings, including the top-ranked and highlighted drug candidates, remained unchanged. The key genes and pathways driving the main results were consistent, demonstrating the robustness of the analysis to these technical corrections.
 
-Following these corrections distributions of the scores and frequencies slightly shifted. Significance thresholds were then re-evaluated using the same approach as before, based on the empirical distribution and maintained consistency with prior cutoffs. The updated thresholds were chosen to best reflect the structure of the revised distributions and at regions similar to before, this allowed for maintaining continuity with the original analysis framework. This led to no to limited changes in the final set of significant genes and drug candidates, with only minor adjustments in borderline cases. The core findings and top candidates remained stable, demonstrating that the overall conclusions of the study are robust to these technical updates. The results and conclusion from the paper remain unchanged, with some small marginal shifts in gene and drug counts primarily affecting background candidates. The top candidates and key biological insights are consistent with the original analysis, confirming the stability of the findings despite these technical corrections. These adjustments therefore represent a consistent reapplication of the original thresholding strategy to slightly updated data. The strong agreement between results before and after these updates, aside from minor differences in background genes and drugs, demonstrates the stability and robustness of the overall pipeline.
+All of these bug fixes and updates improved the stability and robustness of the pipeline without materially altering the biological insights or key findings. The core conclusions regarding significant genes and drug candidates remain consistent with the original analysis, while the technical corrections ensure more reliable data handling and accurate statistical calculations. The folder Results/Final Results/ was updated with the new final results, which are largely consistent with the original findings, with only minor shifts in borderline cases. 
+
+The top candidates and main conclusions are unchanged, demonstrating the robustness of the analysis to these technical improvements.
 
 ---
 
@@ -1170,6 +1176,35 @@ Code updated to align with published methodology. The paper's methods section al
 
 ---
 
+### **03.75 result viewing.ipynb**
+**Purpose:** Quick visualization and exploratory viewing notebook for SOM drug repurposing results. This is an exploratory notebook for viewing intermediate results.
+
+**Key Operations:**
+- Loads SOM drug candidate results (direct and indirect) for HPV+ and HPV-
+- Displays top drug candidates in tabular format
+- Quick comparison between HPV+ and HPV- results
+- Exploratory data viewing without formal analysis or output generation
+
+**Inputs:**
+- `Results/SOM results/hpv_positive_som_top_direct_drug_candidates_agg.csv`: HPV+ SOM direct drugs
+- `Results/SOM results/hpv_negative_som_top_direct_drug_candidates_agg.csv`: HPV- SOM direct drugs
+- `Results/SOM results/hpv_positive_som_top_indirect_drug_candidates_agg.csv`: HPV+ SOM indirect drugs
+- `Results/SOM results/hpv_negative_som_top_indirect_drug_candidates_agg.csv`: HPV- SOM indirect drugs
+
+**Outputs:**
+- **None** - This is a viewing/exploration notebook only
+- Results displayed in notebook cells for review
+- No files saved
+
+**Use Case:**
+- Quick review of SOM drug repurposing results before final integration
+- Exploratory analysis to understand SOM drug candidate characteristics
+- Intermediate checkpoint between SOM analysis (File 03.5) and final comparison (File 04)
+
+**Libraries:** pandas
+
+---
+
 ### **04 SOM and CNV results comparison.ipynb**
 **Purpose:** Compare and visualize overlap between drug candidates identified from CNV (amplifications/deletions) and somatic mutation analyses. This is an exploratory/comparison notebook only - it does not produce output files.
 
@@ -1719,7 +1754,11 @@ The Sankey diagrams visualize drug pathways by showing connections from drugs to
 ## Usage Notes
 
 **Execution Order:**
-Run notebooks sequentially from 00 to 07 to reproduce the complete pipeline.
+Run notebooks sequentially from 00 to 07 to reproduce the complete pipeline. File 03.75 is an optional viewing notebook and can be skipped.
+
+**Required Files:**
+Files 00-03, 03.5, 04-07 must be run in sequence.
+File 03.75 is optional (viewing only).
 
 ---
 
@@ -1813,6 +1852,7 @@ jupyter notebook
 # 02.50 CNV drug repurposing candidates.ipynb → CNV drug candidates
 # 03 SOM identify key mutation gene.ipynb → Somatic mutation analysis
 # 03.5 SOM drug repurpose.ipynb → SOM drug candidates
+# 03.75 result viewing.ipynb → (Optional) View SOM results
 # 04 SOM and CNV results comparison.ipynb → Compare CNV and SOM results
 # 05 Final result creation.ipynb → Aggregate final results
 # 06 Graph direct results.ipynb → Visualize direct drug-gene relationships
@@ -1849,6 +1889,7 @@ Results/Final\ Results/HPV\ Negative\ Validated\ indirect\ candidates.csv
 - File 02.2-02.50: ~30 minutes (CNV drug candidates with 100,000 permutations)
 - File 03: ~30 minutes (SOM analysis with permutation testing)
 - File 03.5: ~30 minutes (SOM drug candidates with 100,000 permutations)
+- File 03.75: ~5 minutes (optional - SOM result viewing)
 - File 04: ~30 minutes (CNV and SOM comparison)
 - File 05: ~15 minutes (final aggregation)
 - File 06-07: ~30 minutes (visualization)

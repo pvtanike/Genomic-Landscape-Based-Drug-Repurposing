@@ -139,6 +139,8 @@ All of these bug fixes and updates improved the stability and robustness of the 
 
 The top candidates and main conclusions are unchanged, demonstrating the robustness of the analysis to these technical improvements.
 
+For the original results prior to these updates, please refer to the branch "pre-update" in this repository. This branch contains the original code and results before the April 2026 updates, allowing for comparison to the paper's original findings. The previous branch is dated for Mar 25, 2026. The last commit on the "pre-update" branch is 7ecb9be, which contains the original code and results prior to the updates described above. The "main" branch contains the updated code and results as of April 2026.
+
 ---
 
 ## Overview

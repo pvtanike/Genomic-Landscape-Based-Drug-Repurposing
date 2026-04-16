@@ -2,7 +2,7 @@
 
 ## Introduction to the GARD Pipeline
 
-The **Genomic Alteration-based Repurposing for Drugs (GARD)** pipeline is a comprehensive computational framework designed to identify drug repurposing opportunities by analyzing the genomic landscape of cancer cohorts. Specifically applied to head and neck squamous cell carcinoma (HNSC) using The Cancer Genome Atlas (TCGA) data, GARD systematically discovers both direct and indirect therapeutic candidates that target genomically altered pathways.
+The **Genomic Alteration-based Repurposing for Drugs (GARD)** pipeline is a comprehensive computational framework designed to identify drug repurposing opportunities by analyzing the genomic landscape of cancer cohorts. Specifically applied to head and neck cancer (HNC) using The Cancer Genome Atlas (TCGA) data, GARD systematically discovers both direct and indirect therapeutic candidates that target genomically altered pathways.
 
 ### What GARD Does
 

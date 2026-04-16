@@ -89,7 +89,7 @@ By integrating genomic alterations, protein networks, drug databases, and publis
 6. [File-by-File Breakdown](#file-by-file-breakdown)
    - [00 Data viewing.ipynb](#00-data-viewingipynb)
    - [01 determine HPV status.ipynb](#01-determine-hpv-statusipynb)
-   - [02 CNV identify mutation gene.ipynb](#02-cnv-identify-mutation-geneipynb) *(updated: improved CNV event handling, see below)*
+   - [02 CNV identify mutation gene.ipynb](#02-cnv-identify-mutation-geneipynb)
    - [02.2 CNV key mutation identification.ipynb](#022-cnv-key-mutation-identificationipynb)
    - [02.50 CNV drug repurposing candidates.ipynb](#0250-cnv-drug-repurposing-candidates-copyipynb)
    - [03 SOM identify key mutation gene.ipynb](#03-som-identify-key-mutation-geneipynb)

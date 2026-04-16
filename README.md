@@ -120,6 +120,7 @@ By integrating genomic alterations, protein networks, drug databases, and publis
 ## Recent Update (April 2026)
 
 **File 02 CNV identify mutation gene.ipynb was updated:** 
+
 The default value for cnv.append in both deletion and amplification event handling was updated to append a value of 2 (representing the normal diploid state) when encountering missing or undefined CNV values. This improves pipeline robustness and ensures stable, consistent execution across all samples.
 
 File counting in HPV-negative samples was refined to use only unique files, eliminating redundant entries and improving the precision of GISTIC score and frequency distributions. Significance cutoffs were re-evaluated and adjusted to optimally fit the revised distributions while maintaining continuity with the original analytical framework.
@@ -127,6 +128,7 @@ File counting in HPV-negative samples was refined to use only unique files, elim
 These refinements produced marginal shifts in intermediate p-values and gene counts near significance boundaries, with minor adjustments to background drug candidates. Core findings, top-ranked candidates, and overall biological conclusions remained fully consistent.
 
 **File 03 SOM identify key mutation gene.ipynb was updated:**
+
 Normalization by gene length now applies a fallback value of 2021 bp (the approximate mean protein-coding gene length) for genes absent from the reference annotation, improving numerical stability and consistency across samples.
 
 The empirical p-value calculation was updated to use the standard pseudocount correction: (count of simulations ≥ observed + 1) / (number of simulations + 1). This eliminates zero-valued p-values and aligns with established best practices for permutation-based inference.

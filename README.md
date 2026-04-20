@@ -945,6 +945,7 @@ This is a quality control and refinement notebook that:
    - Randomly shuffles gene labels to generate null distribution
    - Calculates empirical p-value: proportion of permutations with enrichment ≥ observed
    - Validates statistical significance beyond hypergeometric assumptions
+The empirical p-values in this analysis are based on permutation tests that sample from a set of druggable genes. Because the sampling was performed on an unsorted set, there can be slight variability in empirical p-values and the number of significant drugs identified, especially for results near the significance threshold. This may cause minor differences (e.g., 87 vs. 88 significant drugs) between runs, even with a fixed random seed. However, all top-ranked and most significant results remain robust and unchanged across runs. For full reproducibility, converting the gene universe to a sorted list before sampling is recommended.
 
 3. **Protein-Protein Interaction (PPI) Network Analysis:**
    - Uses STRING database (confidence ≥ 700) for indirect drug candidates

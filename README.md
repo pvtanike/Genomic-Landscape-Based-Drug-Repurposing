@@ -861,7 +861,7 @@ Genetic based drug repurposing Nulton cohort/
 - Interactive visualization for exploring individual gene scores
 - Adds horizontal cutoff line for threshold reference
 
-Note on thresholds: Cutoffs are determined based on distribution characteristics of GISTIC scores and frequency percentages. Thresholds are set to balance sensitivity (capturing true positives) and specificity (excluding false positives), while ensuring clinical relevance. Modifying these thresholds will directly affect which genes are considered significant, and therefore can change the set of drug repurposing candidates identified in downstream analyses. Although many thresholds were tested and viewed and top candidates remained relatively robust to any variations. Users seeking to reproduce or extend these results should carefully document any changes to threshold criteria, as even small adjustments may lead to different drug candidate lists.
+Note on thresholds: Cutoffs were determined from the distribution characteristics of GISTIC scores and gene frequency percentages. These thresholds were selected to balance sensitivity and specificity, and small changes may alter which genes are considered significant and therefore change downstream drug repurposing candidates. Thresholds were evaluated across a range of values, and the top candidates remained relatively robust to reasonable variation. Users reproducing or extending these results should document any threshold changes carefully, as even small adjustments can affect the final drug candidate list.
 
 **Key Operations:**
 

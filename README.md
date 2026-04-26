@@ -137,6 +137,10 @@ The parse_gtf function was refined to compute CDS gene lengths without double-co
 
 These improvements produced minor shifts in borderline significant genes and background drug candidates, with no impact on core findings or top candidates.
 
+**File 2.5 and 3.5**
+
+Added sort in identifying repurposing candidates for reproducibility consistency of the empirical p value calculations. Also filtered null gene values from all druggable genes. These were cosmetic and led to no changes in final values or drugs.  
+
 **Collective Impact:**
 
 These updates collectively improved pipeline efficiency, numerical stability, and biological accuracy. Gene-level shifts were marginal, primarily affecting borderline cases near significance cutoffs including minor changes to background genes such as PDE3A and COL1A2, which were edge cases with no connection to final drug candidates. Total gene and drug counts saw small adjustments limited to background candidates. Core findings, top-ranked drug candidates, and all biological conclusions remained fully consistent with the original analysis, demonstrating the robustness of the pipeline to these technical refinements.

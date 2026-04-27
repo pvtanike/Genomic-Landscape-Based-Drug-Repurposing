@@ -140,6 +140,7 @@ These improvements produced minor shifts in borderline significant genes and bac
 **File 2.5 and 3.5**
 
 Added sort in identifying repurposing candidates for reproducibility consistency of the empirical p value calculations. Also filtered null gene values from all druggable genes. These were cosmetic and led to no changes in final values or drugs.  
+   - Removed filtering to only keep first drug-gene connection in indirect aggregation function, this was cosmetic to allow more understanding of what genes were connected to drugs. Increased some drugs support in later stages but did not affect final drugs. This was a cosmetic change as well.
 
 **Collective Impact:**
 

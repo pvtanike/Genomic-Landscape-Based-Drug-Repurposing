@@ -1373,6 +1373,8 @@ The empirical p-values in this analysis are based on permutation tests that samp
 **Sankey Diagram Visualization Strategy:**
 The Sankey diagrams visualize drug pathways by showing connections from drugs to indirect gene targets (middle layer) and then to **any validated risk genes** within the HPV cohort (right layer) that are PPI-connected to those gene targets. Critically, the risk genes displayed are not limited to only those through which the drug was identified via significance testing. Instead, the diagrams show **all possible flows** from the drug's significant indirect gene targets to any literature-validated risk genes in the cohort—regardless of whether those risk genes were identified through amplification, deletion, or somatic mutation events. This comprehensive approach ensures that each drug-gene connection reveals the full network of potential therapeutic impacts, including connections to risk genes that may have been discovered through different genomic alteration methods than those initially used for drug discovery.
 
+Additionally, the figure limits genes to the top 15 gene targets based on connectivity to risk genes. This can lead to differences in final outputed figure displayed, but does not change the underlying result or final conclusions. This only affects highly connected drugs such as fostamatinib and only the displayed genes here or there based on ordering in input.
+
 ---
 
 **Key Functions:**

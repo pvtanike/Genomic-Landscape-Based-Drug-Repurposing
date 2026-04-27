@@ -143,6 +143,7 @@ Added sort in identifying repurposing candidates for reproducibility consistency
    - Removed filtering to only keep first drug-gene connection in indirect aggregation function, this was cosmetic to allow more understanding of what genes were connected to drugs. Increased some drugs support in later stages but did not affect final drugs. This was a cosmetic change as well.
 
 **File 05**
+
 Ensure gene.strip() is applied when merging literature validation results to prevent mismatches due to whitespace. This was a cosmetic change that did not affect any values or drug candidates, but improved consistency and accuracy of literature validation integration.
 
 **File 07**

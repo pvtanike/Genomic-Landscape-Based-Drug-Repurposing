@@ -142,6 +142,9 @@ These improvements produced minor shifts in borderline significant genes and bac
 Added sort in identifying repurposing candidates for reproducibility consistency of the empirical p value calculations. Also filtered null gene values from all druggable genes. These were cosmetic and led to no changes in final values or drugs.  
    - Removed filtering to only keep first drug-gene connection in indirect aggregation function, this was cosmetic to allow more understanding of what genes were connected to drugs. Increased some drugs support in later stages but did not affect final drugs. This was a cosmetic change as well.
 
+**File 05**
+Ensure gene.strip() is applied when merging literature validation results to prevent mismatches due to whitespace. This was a cosmetic change that did not affect any values or drug candidates, but improved consistency and accuracy of literature validation integration.
+
 **File 07**
 Added a sort to the final drug list to ensure consistent ordering of genes in the Sankey diagrams. This was a cosmetic change that did not affect any values or drug candidates, but improved reproducibility and consistency of visual outputs. Only affected fostamatinib as it had many gene targets, now the top 15 genes shown are consistent across runs. This was a cosmetic change that did not affect any values or drug candidates, but improved reproducibility and consistency of visual outputs.
 
